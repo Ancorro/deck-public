@@ -1,0 +1,6 @@
+{
+  "permissions": {
+    "allow": ["Bash(deck-key:*)", "Write(scripts/**)", "Edit(scripts/**)", "Bash(chmod +x scripts/:*)",
+              "Bash(git add:*)", "Bash(git commit:*)", "Bash(git status:*)", "Bash(deck-notes sync:*)"]
+  }
+}

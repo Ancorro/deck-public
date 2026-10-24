@@ -1,0 +1,12 @@
+[Unit]
+Description=Deck over iroh (reach this Deck by its key, no Tailscale needed)
+After=network-online.target deck.service
+
+[Service]
+# Prints this host's key and saves it to ~/.config/deck/iroh.id (Deck's pairing QR carries it).
+ExecStart=%h/.local/bin/deck-iroh serve
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

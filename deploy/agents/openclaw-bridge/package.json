@@ -1,0 +1,10 @@
+{
+  "name": "deck-openclaw-bridge",
+  "private": true,
+  "type": "module",
+  "description": "Deck's OpenClaw Gateway connection for chat_bridge.py (see bridge.mjs)",
+  "dependencies": {
+    "@openclaw/gateway-client": "2026.10.4",
+    "@openclaw/gateway-protocol": "2026.10.4"
+  }
+}
