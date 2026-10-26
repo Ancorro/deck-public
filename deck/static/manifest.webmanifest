@@ -1,0 +1,9 @@
+{
+  "name": "___ deck",
+  "short_name": "___ deck",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#d9d6cf",
+  "theme_color": "#d9d6cf",
+  "icons": [{ "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

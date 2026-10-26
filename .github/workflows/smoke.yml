@@ -1,0 +1,44 @@
+# Fresh Linux and macOS machines: start the Deck server, run a session in tmux, check pairing holds on the tunnel port,
+# and run the unit tests. Manual (Actions → smoke → Run workflow), and on pull requests.
+name: smoke
+on: [workflow_dispatch, pull_request]
+permissions: { contents: read }
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Browser behavior tests
+        run: node --test tests/*.test.cjs
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with: { prune-cache: false }  # the server still runs at the end and holds the cache lock
+      - name: tmux
+        run: if [ "$RUNNER_OS" = macOS ]; then brew install tmux; else sudo apt-get install -y tmux; fi
+      - name: A stand-in claude on PATH (the chat bridge tests look it up; they never run it)
+        run: mkdir -p "$HOME/bin" && echo '#!/bin/sh' > "$HOME/bin/claude" && chmod +x "$HOME/bin/claude" && echo "$HOME/bin" >> "$GITHUB_PATH"
+      - name: Unit tests
+        run: uv run --no-project --python 3.12 --with aiohttp --with qrcode --with pytest --with pytest-asyncio --with pytest-aiohttp python -m pytest -q tests
+      - name: Server, a session, pairing
+        run: |
+          uv run --no-project --python 3.12 --with aiohttp --with qrcode python -m deck.server > deck.log 2>&1 &
+          for i in $(seq 60); do curl -sf -o /dev/null http://127.0.0.1:8787/ && break; sleep 1; done
+          curl -sf http://127.0.0.1:8787/api/settings > /dev/null
+          id=$(curl -sf -X POST -H "Content-Type: application/json" \
+            -d '{"label": "smoke", "type": "shell", "text": "echo deck-smoke-ok; sleep 60"}' \
+            http://127.0.0.1:8787/api/buttons | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          curl -sf -X POST http://127.0.0.1:8787/api/run/$id
+          sleep 3
+          curl -sf http://127.0.0.1:8787/api/sessions | tee sessions.json | grep -q smoke
+          # The tunnel port never lets an unpaired device in
+          for p in /api/sessions /api/settings /api/devices; do
+            test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8788$p)" = 401
+          done
+          echo "smoke ok"
+          pkill -f deck.server || true
+      - if: always()
+        run: cat deck.log sessions.json 2>/dev/null | tail -60

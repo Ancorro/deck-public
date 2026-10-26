@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Update Deck on every host in the machine notes inventory (inventory.toml entries with deck_url) and every linked
+PC: each pulls and restarts itself.
+
+Run after pushing to the Deck repo: `~/deck/deploy/update-all`. Works from any Deck host (or a Deck key).
+"""
+import json
+import os
+import sys
+import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from deck import auth, core  # noqa: E402
+
+PORT = os.environ.get("DECK_PORT", "8787")
+HEADERS = {"Authorization": f"Bearer {auth.host_key()}"} if auth.host_key() else {}  # Decks only take updates from the user's hosts
+failed = False
+for h in core.hosts()["hosts"]:
+    # This host goes direct: its own tailnet name may not route back to itself (WSL behind Windows).
+    url = f"http://127.0.0.1:{PORT}" if h["current"] else h["url"]
+    try:
+        req = urllib.request.Request(f"{url}/api/update", method="POST", headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=60) as r:
+            res = json.load(r)
+        print(f"{h['name']}: " + (f"{res['old']} -> {res['new']}, restarting" if res["restarting"] else f"up to date ({res['new']})"))
+    except Exception as e:  # noqa: BLE001 - report and keep going
+        body = e.read().decode() if hasattr(e, "read") else ""
+        print(f"{h['name']}: FAILED {e} {body}".rstrip())
+        failed = True
+sys.exit(1 if failed else 0)

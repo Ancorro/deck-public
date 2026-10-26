@@ -1,0 +1,146 @@
+# Builds the Deck PC app (desktop/, Go) for Windows. Artifacts: deck-windows (deck.exe, uv.exe and the MSYS2 kit in
+# server/msys: unzip into %LOCALAPPDATA%\Deck next to a git checkout in server/, see docs/install.md "PC app") and, when ticked,
+# the tunnel (deck-iroh, Rust: a few minutes, and it rarely changes) for Windows and Linux, and the phone app (APK).
+# Also checks desktop/ builds for Linux and macOS.
+# Manual (Actions → release → Run workflow), or a version tag: pushing a tag like v0.1.0 builds everything and attaches
+# deck-<tag>-windows.zip, deck-iroh-linux-<arch>, deck-<version>.apk and SHA256SUMS to a draft release of that tag
+# (publish it on GitHub). Plain pushes never start a build.
+# The APK is release-signed when the repo has the secrets DECK_KEYSTORE_B64 (the keystore, base64) and
+# DECK_KEYSTORE_PASS (alias "deck"); without them it is debug-signed and left out of the release.
+name: release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tunnel:
+        description: Also build deck-iroh for Windows and Linux (Rust, a few minutes)
+        type: boolean
+        default: false
+      apk:
+        description: Also build the phone app (APK)
+        type: boolean
+        default: false
+      version:
+        description: Version for a manual APK (e.g. 0.3.1; its versionCode must exceed the installed app's, so 0.0.1 never installs over a release)
+        type: string
+        default: "0.0.1"
+permissions: { contents: read }
+
+jobs:
+  app:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version: stable, cache: false }  # one small dependency (go-webview2): no cache needed
+      - name: Build
+        working-directory: desktop
+        env: { CGO_ENABLED: "0" }
+        run: |
+          go vet . && go test .
+          go build -trimpath -ldflags "-s -w" -o ../dist/deck.exe .
+          GOOS=linux go build -o "$RUNNER_TEMP/deck-linux" . && GOOS=darwin GOARCH=arm64 go build -o "$RUNNER_TEMP/deck-macos" .
+      - name: uv (runs the Deck server with its own Python)
+        run: |
+          curl -sSfL https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip -o "$RUNNER_TEMP/uv.zip"
+          unzip -q -o "$RUNNER_TEMP/uv.zip" uv.exe -d dist
+      - name: MSYS2 (sessions run in its tmux)
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: MSYS
+          update: false
+          install: msys2-runtime bash tmux coreutils grep sed gawk findutils less which ncurses diffutils
+      - name: MSYS2 kit
+        shell: msys2 {0}
+        run: bash desktop/msys-kit.sh dist/server/msys
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: deck-windows, path: dist/ }
+
+  tunnel:
+    if: inputs.tunnel || startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with: { workspaces: "tunnel -> target" }
+      - name: Build
+        working-directory: tunnel
+        run: cargo build --release --bin deck-iroh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: deck-iroh-windows, path: tunnel/target/release/deck-iroh.exe }
+
+  # install.sh downloads these instead of building with Rust. Built on 22.04 so older glibc hosts run them too.
+  tunnel-linux:
+    if: inputs.tunnel || startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - { arch: x86_64, os: ubuntu-22.04 }
+          - { arch: aarch64, os: ubuntu-22.04-arm }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with: { workspaces: "tunnel -> target" }
+      - name: Build
+        working-directory: tunnel
+        run: cargo build --release --bin deck-iroh && cp target/release/deck-iroh "deck-iroh-linux-${{ matrix.arch }}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: "deck-iroh-linux-${{ matrix.arch }}", path: "tunnel/deck-iroh-linux-${{ matrix.arch }}" }
+
+  # The phone app with no host list (app/build.sh, DECK_APP_VERSION). The runner image has the Android SDK and NDK.
+  apk:
+    if: inputs.apk || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with: { distribution: temurin, java-version: "21" }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with: { node-version: "22" }
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with: { targets: aarch64-linux-android }
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with: { workspaces: "tunnel -> target" }
+      - name: cargo-ndk
+        run: cargo install -q --locked cargo-ndk
+      - name: Build
+        env:
+          KS: "${{ secrets.DECK_KEYSTORE_B64 }}"
+          DECK_KEYSTORE_PASS: "${{ secrets.DECK_KEYSTORE_PASS }}"
+          DECK_APP_VERSION: "${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.version || '0.0.1' }}"
+        run: |
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > "$RUNNER_TEMP/deck.keystore"; export DECK_KEYSTORE="$RUNNER_TEMP/deck.keystore"; fi
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" CARGO="$(command -v cargo)"
+          app/build.sh
+          [ -n "$KS" ] && touch dist/signed || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: deck-apk, path: dist/ }
+
+  # A version tag: one zip for %LOCALAPPDATA%\Deck (deck.exe, deck-iroh.exe, uv.exe, server\msys), the Linux tunnels
+  # and the signed APK on a draft release.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [app, tunnel, tunnel-linux, apk]
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; NOTICE goes in the zip (it carries MSYS2's programs)
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { path: dl }
+      - name: Zip and draft the release
+        env: { GH_TOKEN: "${{ github.token }}", TAG: "${{ github.ref_name }}" }
+        run: |
+          mkdir -p Deck && cp -r dl/deck-windows/. Deck/ && cp dl/deck-iroh-windows/deck-iroh.exe NOTICE LICENSE Deck/
+          mkdir -p out && (cd Deck && zip -qr "../out/deck-$TAG-windows.zip" .)
+          cp dl/deck-iroh-linux-*/deck-iroh-linux-* out/
+          [ -f dl/deck-apk/signed ] && cp dl/deck-apk/*.apk out/ || echo "APK not signed (no DECK_KEYSTORE_B64 secret): left out"
+          (cd out && sha256sum * > SHA256SUMS)
+          gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --draft --title "Deck $TAG" \
+            --notes "Windows: unzip deck-$TAG-windows.zip into %LOCALAPPDATA%\Deck next to a git checkout of this tag in server\ (docs/install.md, PC app). Linux: install.sh downloads deck-iroh. Android: install the APK. Checksums: SHA256SUMS."

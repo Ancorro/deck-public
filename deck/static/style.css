@@ -1,0 +1,1465 @@
+/* DK-01 "field instrument": anodized body, rubber keys, LEDs, dot-matrix LCD.
+   Light = raw aluminium edition; dark = black edition. */
+/* hidden always hides: a class's own display (flex, grid) would otherwise win over the attribute. */
+[hidden] { display: none !important; }
+
+:root {
+  --desk: #b9b5ac;
+  --body: #d9d6cf; --body-hi: #e8e5df; --body-lo: #c2bfb7; --well: #b3afa6; --seam: #a9a59c;
+  --ink: #1c1c1a; --ink2: #4f4d48; --ink3: #8b887f;
+  --accent: var(--power, #ff4f12); --on-accent: #fff6f0; /* text on the accent: dark on a light host colour (8-settings.js) */ --orange: #ff4f12; --orange-lo: #c93a08; --green: #31d158; --red: #ff3b30; --led-off: #8f8c84;
+  --screen: #121311; --screen-ink: #ebe7dc; --screen-dim: #6d6a62;
+  --gutter: max(12px, 2.7%); /* a chat's side gutter: its text, message box, status line and project bar share it */
+  --k-shell: #f3f1ec; --k-shell-ink: #1c1c1a;
+  --k-claude: #ff4f12; --k-claude-ink: #fff6f0;
+  --k-codex: #2b2b2a; --k-codex-ink: #ebe7dc;
+  --k-opencode: #2f4858; --k-opencode-ink: #ebe7dc;
+  --k-pi: #4a3f6b; --k-pi-ink: #ebe7dc;
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --brush: repeating-linear-gradient(90deg, #ffffff0a 0 1px, transparent 1px 3px, #0000000a 3px 4px);
+  /* Type (user 2026-10-08): two families, Archivo for text and IBM Plex Mono for labels, code and figures (Noto Sans
+     Symbols 2 only fills in the media-key glyphs). One width; weights 400, 500, 600, 700.
+     Sizes: px 8 10 12 15 18, and 26 for key icons only; chat sizes: the chat font (--chatfont) times .8, 1 or 1.5, never nested em (they multiply).
+     Pick the nearest step; don't add new ones. */
+  --ui: "Archivo", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "Noto Sans Symbols 2", ui-monospace, monospace;
+  color-scheme: light;
+}
+b, strong { font-weight: 700; } /* bold is 700 everywhere (the type scale's top weight) */
+/* Dark: follows the system unless Settings forces a theme (data-theme on <html>). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) {
+    --desk: #0b0b0c;
+    --body: #1d1d1e; --body-hi: #262627; --body-lo: #141415; --well: #0e0e0f; --seam: #0a0a0b;
+    --ink: #ebe7dc; --ink2: #a29f97; --ink3: #64625d;
+    --led-off: #3a3936;
+    --k-shell: #3b3b3c; --k-shell-ink: #ebe7dc;
+    --k-codex: #0f0f10; --k-codex-ink: #ebe7dc;
+    --k-opencode: #22343f; --k-pi: #352d4f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme=dark] {
+  --desk: #0b0b0c;
+  --body: #1d1d1e; --body-hi: #262627; --body-lo: #141415; --well: #0e0e0f; --seam: #0a0a0b;
+  --ink: #ebe7dc; --ink2: #a29f97; --ink3: #64625d;
+  --led-off: #3a3936;
+  --k-shell: #3b3b3c; --k-shell-ink: #ebe7dc;
+  --k-codex: #0f0f10; --k-codex-ink: #ebe7dc;
+  --k-opencode: #22343f; --k-pi: #352d4f;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
+body { background: var(--desk) var(--noise); color: var(--ink); font: 500 15px/1.4 var(--ui); overscroll-behavior: none; }
+button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
+input, textarea { font: inherit; color: inherit; }
+
+/* The device: always a vertical body; centered as a handset on wide screens. */
+#app { position: relative; display: flex; flex-direction: column; height: 100dvh; max-width: 440px; margin: 0 auto;
+  background: var(--noise), var(--brush), linear-gradient(180deg, var(--body-hi), var(--body) 30%, var(--body) 80%, var(--body-lo));
+  overflow: hidden;  }
+@media (min-width: 520px) {
+  body { display: grid; place-items: center; }
+  #app { width: 420px; height: min(900px, calc(100dvh - 48px)); border-radius: 38px;
+    box-shadow: inset 0 1px 0 #ffffff55, inset 0 -2px 0 #00000022, 0 0 0 1px var(--seam), 0 40px 80px -20px #0007, 0 10px 20px #0003; }
+}
+
+/* PC app: the window is the frame, so the panel fills it edge to edge. */
+html.pc body { display: block; }
+html.pc #app { width: 100vw; max-width: none; height: 100dvh; border-radius: 0; box-shadow: none; }
+
+/* Desktop: everything at once (Pad | Terminal | an empty right margin). */
+@media (min-width: 1100px) {
+  /* less desk above the panel and a slimmer top bar (user) */
+  html:not(.pc) #app { align-self: start; margin-top: 12px; }
+  #app > .top { padding-top: 4px; padding-bottom: 3px; }
+  #app { width: calc(100vw - 48px); max-width: 1800px; height: calc(100dvh - 36px); display: grid; border-radius: 28px;
+    /* open column = --padw; collapsed column = an empty margin of --padcw (default 0); right margin --feedcw.
+       Dragged margins set --coll/--colm/--colr (applyLayout): the terminal keeps its width and the margins take the slack. */
+    grid-template-columns:
+      var(--coll, calc(var(--padw, 150px) * var(--padon, 1) + var(--padcw, 0px) * (1 - var(--padon, 1))))
+      var(--colm, minmax(0, 1fr))
+      var(--colr, var(--feedcw, 0px));
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "top top top" "pad main edge" "pad nav edge"; }
+  .top { grid-area: top; }
+  /* Session tabs sit over the terminal column, following its width (resize / collapse) */
+  /* One column of keys in a key-wide panel, kept beside the terminal however wide the column is dragged */
+  #view-deck { grid-area: pad; border-right: 1px solid var(--seam); padding-top: 8px; align-items: flex-end; }
+  #view-deck > * { width: 112px; }
+  #app #pad { grid-template-columns: 80px; }
+  #view-term, #view-screen { grid-area: main; }
+  .tabbar button[data-view=deck] { display: none; }
+  .tabbar:not(:has(#screentab:not([hidden]), #reviewtab)) { display: none; } /* Review is always there on a PC */
+  .termwrap { margin: 0 4px; }
+  .keys, .composer { padding-left: 4px; padding-right: 4px; }
+  /* Collapsible side columns (header toggles, remembered per browser) */
+  #app .paneltoggle { display: grid; }
+  #app { --padon: 0; } /* the Pad is a column inside the terminal: the grid's left column is only a margin */
+  #view-deck, #togglepad { display: none !important; }
+  #app.nopad #view-deck { display: none !important; }
+  #app.nobottom #view-term > :is(.keybar, .composer) { display: none !important; } /* a chat's (in #term) stay */
+  #app:has(#term.chat) #togglebottom { display: none; } /* a chat always shows its message box: no toggle */
+  #msg { min-height: calc(1.4em + 8px); } /* one line to start, growing as you type (user: "chat box smaller on pc") */
+  #app.nobottom #view-term:not(:has(#term.chat)) { padding-bottom: 16px; }
+  #app.noresize .colgrip { display: none; }
+  /* LIVE sits at the far right, after the collapse buttons */
+  #layouts { display: flex; gap: 2px; margin-left: auto; } /* saved layouts, Layouts, Fullscreen / Minimize, the bottom toggle, LIVE */
+  .layouts .paneltoggle { width: auto; min-width: 30px; padding: 0 6px; font: 600 13px var(--ui); }
+  #togglefull[aria-pressed=false] .fsout, #togglefull[aria-pressed=true] .fsin { display: none; }
+  #app #pulse { order: 1; margin-left: 4px; }
+  #app .colgrip { display: block; grid-area: main; z-index: 3; width: 10px; cursor: col-resize; touch-action: none; }
+  #grippad { justify-self: start; margin-left: -5px; }
+  #gripfeed { justify-self: end; }
+  .colgrip:hover, .colgrip.drag { background: linear-gradient(90deg, transparent 4px, var(--accent) 4px 6px, transparent 6px); }
+  /* Collapsed column: its grip stays (drag out to reopen), tucked inside the window edge */
+  #app.nopad #grippad { margin-left: 0; }
+  #app.resizing { cursor: col-resize; user-select: none; }
+}
+.colgrip { display: none; }
+@media (max-width: 1099px) { #settings .deskonly, #settings label.yolo.deskonly { display: none; } }
+/* PC: Settings wide and short, its groups flowing in two columns */
+@media (min-width: 1100px) {
+  #settings { width: min(780px, calc(100vw - 48px)); }
+  #setform { columns: 2; column-gap: 32px; }
+  .setsec { display: contents; } /* the sections' rows flow through the columns as before */
+  #setform .setsec > * { break-inside: avoid; }
+  #setform .setsec > h3, #setform .setsec > label:not(.yolo):has(+ div) { break-after: avoid; }
+  #setform .setsec[data-sec=look] > h3 { break-before: column; margin-top: 4px; padding-top: 0; border-top: none; } /* Appearance tops the right column */
+  #setform details.setsec { display: block; break-inside: avoid; } /* Advanced: one block, open by default on a PC (8-settings.js) */
+}
+.paneltoggle { display: none; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 8px; color: var(--ink3); cursor: pointer; }
+.paneltoggle[aria-pressed=true] { color: var(--ink); }
+.paneltoggle:active { color: var(--accent); }
+
+/* ---- top plate ---- */
+.top { display: flex; flex-direction: column; align-items: stretch; gap: 6px; flex: none;
+  padding: max(8px, env(safe-area-inset-top)) 16px 6px; }
+#pulse[hidden] { display: none !important; }
+#pulse { margin-left: auto; min-width: 0; padding: 3px 5px; font-size: 10px; line-height: 1; letter-spacing: 0; text-align: left; white-space: nowrap; }
+.brand { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.power { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--power, var(--orange));
+  box-shadow: 0 0 0 2px var(--well), 0 0 10px var(--power, var(--orange)); }
+.word { font-weight: 700; font-size: 15px; letter-spacing: -.02em; line-height: 1; }
+.model { font: 500 8px var(--mono); letter-spacing: .16em; color: var(--ink3); }
+/* Title: the Deck's name then the "deck" wordmark; tap for Settings. */
+.hostbtn { display: flex; align-items: baseline; gap: 6px; padding: 4px 0; text-align: left; cursor: pointer; min-width: 0; color: var(--ink); }
+.hostbtn #hostname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 15px; font-weight: 400; letter-spacing: .02em; line-height: 1; color: var(--ink); }
+.hostbtn .word { flex: none; }
+.hostbtn .model { flex: none; }
+.hostbtn .power { align-self: center; margin: 0 2px; }
+/* Dialogs centre inside the safe area: the app draws under the phone's status and navigation bars. */
+dialog { top: env(safe-area-inset-top); bottom: env(safe-area-inset-bottom);
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px); }
+#settings { overflow-y: auto; overflow-x: hidden; }
+@media (pointer: coarse) { /* the font slider's row reads touches (app.js): sideways drags only; vertical ones scroll */
+  #setform input[name=font] { pointer-events: none; }
+  #setform label:has(> input[name=font]) { touch-action: pan-y; }
+}
+#settings input[type=range] { padding: 0; box-shadow: none; background: none; accent-color: var(--accent); }
+.sethint { font: 500 10px var(--mono); letter-spacing: .08em; text-transform: none; color: var(--ink3); margin-left: 6px; }
+.keys button[hidden], .hpop button[hidden] { display: none; }
+#setfontval { float: right; color: var(--ink2); letter-spacing: 0; }
+/* Settings: one scrolling page under a sticky header; group headings, compact rows, switches. */
+#settings { padding-top: 0; }
+.sethead { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 10px; margin: 0 -20px 4px;
+  padding: 16px 20px 10px; background: linear-gradient(180deg, var(--body-hi) 70%, transparent); }
+.sethead h2 { margin: 0; }
+.sethead button { margin-left: auto; }
+#setsaved { font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3);
+  opacity: 0; transition: opacity .3s; }
+#setsaved.on { opacity: 1; transition: none; }
+/* Each section clearly its own: room above, a firm rule, a bigger heading with an accent mark */
+.setgroup { margin: 30px 0 12px; padding-top: 18px; border-top: 2px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  font: 700 18px var(--ui); letter-spacing: 0; color: var(--ink); }
+.setgroup::before { content: ""; display: inline-block; width: 4px; height: .8em; margin-right: 8px; border-radius: 2px;
+  background: var(--accent); vertical-align: -1px; }
+#setform .setsec:first-of-type > .setgroup { margin-top: 4px; padding-top: 0; border-top: none; }
+summary.setgroup { list-style: none; cursor: pointer; }
+summary.setgroup::-webkit-details-marker { display: none; }
+summary.setgroup::after { content: "›"; float: right; color: var(--ink3); transition: transform .15s; }
+details[open] > summary.setgroup::after { transform: rotate(90deg); }
+/* Phones (user: Settings made no sense there): what a phone opens Settings for comes first (Appearance, then the
+   Devices / PCs / Notes / Guide / App rows), each section a card with readable hints, and the rare switches folded
+   under Advanced at the end */
+@media (max-width: 1099px) {
+  #setform { display: flex; flex-direction: column; gap: 12px; }
+  .setsec { display: block; order: 5; padding: 4px 14px 8px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .setsec[data-sec=look] { order: 1; }
+  .setsec[data-sec=more] { order: 2; }
+  .setsec[data-sec=chat] { order: 3; }
+  .setsec[data-sec=new] { order: 4; }
+  .setsec[data-sec=deck] { order: 5; }
+  .setsec[data-sec=projects] { order: 6; }
+  .setsec[data-sec=advanced] { order: 7; }
+  #seterr { order: 8; }
+  #setform .setgroup { margin: 8px 0 6px; padding: 0; border: none; font-size: 16px; }
+  .setsec[data-sec=more] > .setgroup { display: none; } /* its rows speak for themselves */
+  #setlinks { margin: 0; }
+  #settings .sethint, #settings #setlinks small { font: 500 12px/1.35 var(--ui); letter-spacing: 0; color: var(--ink2); }
+  #settings label.yolo { font-size: 14px; padding: 12px 0; }
+  #settings label.yolo .sethint { margin-top: 3px; }
+}
+#settings .agentpick { margin-bottom: 12px; }
+#settings .agentpick span { padding: 8px 4px; }
+#settings label.yolo { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 10px;
+  margin: 0; padding: 10px 0; font: 600 12px var(--ui); letter-spacing: 0; text-transform: none; color: var(--ink); }
+#settings label.yolo input { grid-column: 2; grid-row: 1 / span 2; }
+#settings label.yolo .sethint { margin: 2px 0 0; }
+#settings label.effort select { grid-column: 2; padding: 6px 8px; border: none; border-radius: 8px; font: 600 12px var(--mono);
+  background: var(--body-lo); color: var(--ink); box-shadow: inset 0 2px 4px #0003; }
+#projdlg input[name=project] { width: 100%; box-sizing: border-box; }
+#sampdlg .samprow { display: grid; grid-template-columns: 4em repeat(3, 1fr); gap: 6px; align-items: center; margin: 6px 0;
+  font: 600 12px var(--ui); color: var(--ink); }
+#sampdlg .samprow input { min-width: 0; padding: 6px 8px; border: none; border-radius: 8px; font: 600 12px var(--mono);
+  background: var(--body-lo); color: var(--ink); box-shadow: inset 0 2px 4px #0003; }
+#settings label.yolo + label.yolo { border-top: 1px solid var(--seam); }
+/* Switches: a checkbox drawn as a pill */
+#settings label.yolo input { appearance: none; flex: none; width: 38px; height: 22px; border-radius: 11px; cursor: pointer;
+  background: var(--k-shell); box-shadow: inset 0 1px 3px #0005; position: relative; transition: background .15s; }
+#settings label.yolo input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--ink); transition: transform .15s; }
+#settings label.yolo input:checked { background: var(--accent); }
+#settings label.yolo input:checked::after { transform: translateX(16px); background: #fff; }
+/* More: rows opening the Devices / Notes / Guide dialogs (and the APK download) */
+#setlinks { display: flex; flex-direction: column; margin: -6px 0 0; }
+#setlinks > * { display: flex; align-items: baseline; gap: 10px; padding: 12px 0;
+  font: 700 15px var(--ui); color: var(--ink); text-align: left; text-decoration: none; }
+#setlinks > * + * { border-top: 1px solid var(--seam); }
+#setlinks small { font: 500 10px var(--mono); letter-spacing: .06em; color: var(--ink3); }
+#setlinks [hidden] { display: none; }
+#guide { max-height: calc(100dvh - 24px); overflow-y: auto; overflow-x: hidden; }
+#devices { max-height: calc(100dvh - 24px); overflow-y: auto; overflow-x: hidden; }
+#devices .hostrow button { margin-left: auto; }
+.saverow { flex-wrap: wrap; row-gap: 4px; }
+.saverow b { flex: 1 1 100%; }
+.saverow p { flex: 1 1 100%; margin: 2px 0 0; font-size: 12px; color: var(--ink2); overflow: hidden; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.saverow .saveacts { margin-left: auto; display: flex; gap: 8px; }
+#savedeleted summary { margin: 4px 0 10px; font: 600 12px var(--mono); letter-spacing: .08em; color: var(--ink3); cursor: pointer; }
+#pairbox { text-align: center; margin: 6px 0 14px; }
+#pairqr { display: block; margin: 0 auto 10px; padding: 10px; border-radius: 12px; background: #fff; }
+#pairlink { word-break: break-all; }
+#linkcode { width: 100%; font: 500 12px var(--mono); }
+#links .row { flex-wrap: wrap; gap: 8px; }
+#notes { width: min(760px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; overflow-x: hidden; }
+.notessync { margin: -6px 0 12px; font: 500 12px var(--mono); color: var(--ink3); }
+.notessync .warn { color: var(--orange); }
+#notesfile { width: 100%; margin-bottom: 10px; padding: 9px 10px; border: none; border-radius: 10px; font: 600 12px var(--mono);
+  background: var(--body-lo); color: var(--ink); box-shadow: inset 0 2px 4px #0003; }
+#notestext { font: 12px/1.5 var(--mono); white-space: pre-wrap; }
+.gstep { margin-bottom: 20px; }
+.gstep h3 { margin: 0 0 10px; font: 600 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink3); }
+.gstep p { margin: 10px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink2); }
+.gframes { display: flex; align-items: center; gap: 8px; }
+.gframe { position: relative; flex: 1 1 0; min-width: 0; display: grid; gap: 6px; place-items: center; padding: 12px 8px; border-radius: 12px;
+  background: var(--body-lo); box-shadow: inset 0 2px 4px #0003; pointer-events: none; }
+.gframe .hostrow { width: 100%; margin: 0; padding: 7px 9px; font-size: 12px; position: relative; }
+.gframe .hostrow em { font-size: 8px; }
+.gframe .chip { max-width: 100%; }
+.ghead { position: relative; display: flex; align-items: baseline; gap: 5px; }
+.ghead .model { font-size: 12px; color: var(--ink); }
+.ghead .word { font-size: 12px; }
+.ghead .power { align-self: center; width: 6px; height: 6px; }
+.gframe small { font: 600 8px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); }
+.gkey { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; font: 600 15px var(--mono);
+  background: var(--k-shell); color: var(--k-shell-ink); box-shadow: 0 0 0 2px var(--well), inset 0 -2px 0 #0002, 0 3px 0 2px var(--well); }
+.gkey.lit { box-shadow: 0 0 0 2px var(--well), 0 0 12px var(--power, var(--orange)), 0 3px 0 2px var(--well); }
+.gkey.lifted { transform: scale(1.1) translate(6px, -4px); box-shadow: 0 0 0 2px var(--accent), 0 10px 18px #0006; }
+.gpill { padding: 5px 8px; border-radius: 8px; font: 600 10px var(--mono); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  background: var(--k-shell); color: var(--k-shell-ink); box-shadow: 0 0 0 2px var(--well), 0 2px 0 2px var(--well); }
+.gpill.dim { opacity: .6; }
+.garrow { flex: none; color: var(--ink3); font: 600 12px var(--mono); }
+/* pulsing fingertip marking where to tap */
+.gtap { position: absolute; right: 6px; bottom: 4px; width: 16px; height: 16px; border-radius: 50%; background: var(--accent);
+  opacity: .55; animation: gtap 1.4s ease-out infinite; }
+@keyframes gtap { 0% { transform: scale(.6); opacity: .7; } 70% { transform: scale(1.3); opacity: 0; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .gtap { animation: none; } }
+/* Settings → Deck: the name, and a colour wheel beside it for this host's LED (the dot in its middle is the colour). */
+.setname { display: flex; align-items: flex-end; gap: 12px; }
+.setname > label:first-child { flex: 1; min-width: 0; }
+.setname .wheel { position: relative; flex: none; width: 40px; height: 40px; margin: 0 0 2px; border-radius: 50%; cursor: pointer;
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); box-shadow: inset 0 0 0 1px var(--seam); }
+.setname .wheel::after { content: ""; position: absolute; inset: 11px; border-radius: 50%; background: var(--c, var(--power));
+  box-shadow: 0 0 0 3px var(--body), 0 0 8px var(--c, var(--power)); pointer-events: none; }
+.setname .wheel input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; padding: 0; cursor: pointer; }
+.setnamehint { display: block; margin: 4px 0 12px; }
+/* the session trash's host: its LED dot and name (one trash for the whole Deck) */
+.trashhost::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%;
+  background: var(--hostled); vertical-align: 1px; }
+.setprojects { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.setproject { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.setproject .projname { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12px var(--mono); color: var(--ink2); }
+.setproject a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.sethosts { display: flex; flex-direction: column; gap: 8px; }
+.sethost { display: flex; align-items: center; gap: 14px; padding-left: 4px; }
+/* the host's colour as a plain swatch, its LED (user: the rainbow wheels looked silly); a tap opens the picker */
+.sethost .wheel { position: relative; flex: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; background: var(--c);
+  box-shadow: 0 0 0 2px var(--screen), 0 0 0 3px color-mix(in srgb, var(--c) 60%, transparent), 0 0 10px color-mix(in srgb, var(--c) 45%, transparent); }
+.sethost .wheel input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; padding: 0; cursor: pointer; }
+.sethostname { flex: 1; min-width: 0; }
+.sethostname input { width: 100%; }
+.sethostname .sethint { display: block; margin-top: 2px; }
+.hostbtn:active, .hostbtn:active .model { color: var(--accent); }
+.hostrow { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; margin-bottom: 10px; border-radius: 12px;
+  text-decoration: none; color: var(--k-shell-ink); background: var(--k-shell);
+  box-shadow: 0 0 0 2px var(--well), inset 0 -2px 0 #0002, inset 0 1px 0 #fff6, 0 3px 0 2px var(--well); }
+.hostrow b { font-weight: 700; }
+.hostrow span { font: 500 12px var(--mono); color: var(--ink3); }
+.hostrow em { margin-left: auto; font: 600 10px var(--mono); font-style: normal; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.hostrow.on { pointer-events: none; }
+#winlist { max-height: 55dvh; overflow-y: auto; }
+#winlist .hostrow { min-width: 0; }
+#winlist .hostrow b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#winlist .hostrow span, #winlist .hostrow em { flex: none; }
+button.hostrow { width: 100%; align-items: center; font: inherit; text-align: left; cursor: pointer; }
+button.hostrow .cicon { width: 18px; text-align: center; font: 600 15px var(--mono); }
+#wins .hint { font: 500 12px var(--mono); color: var(--ink3); }
+.lcd { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 7px 11px;
+  border-radius: 7px; background: var(--screen); color: var(--screen-ink); font: 700 15px/1 var(--mono); letter-spacing: .08em;
+  box-shadow: inset 0 2px 5px #000c, 0 0 0 3px var(--well), 0 1px 0 4px #ffffff22; overflow: hidden; }
+.lcd::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, #0000 0 2px, #0003 2px 3px); }
+.lcd.alert { color: var(--orange); }
+.lcd.offline { color: var(--red); }
+
+.view { flex: 1; min-height: 0; overflow: auto; padding: 2px 16px 16px; }
+.view[hidden] { display: none !important; }
+
+/* ---- PAD ---- */
+.bezel { position: relative; padding: 22px 16px 14px; border-radius: 22px;
+  background: var(--noise), linear-gradient(180deg, var(--body-lo), var(--body));
+  box-shadow: inset 0 2px 4px #0000002e, inset 0 -1px 0 #ffffff40, 0 1px 0 #ffffff50; }
+/* four corner screws */
+.bezel::before { content: ""; position: absolute; inset: 7px; pointer-events: none;
+  --s: radial-gradient(circle, var(--ink3) 0 1px, var(--body-hi) 1.5px 3px, var(--seam) 3.5px, transparent 4px);
+  background: var(--s) top left / 9px 9px no-repeat, var(--s) top right / 9px 9px no-repeat,
+              var(--s) bottom left / 9px 9px no-repeat, var(--s) bottom right / 9px 9px no-repeat; }
+#pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 14px; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
+.cell .key { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.cell.lifted { position: relative; z-index: 2; transform: scale(1.08); opacity: .92; transition: transform .12s; }
+.cell.lifted .key { box-shadow: 0 0 0 2px var(--accent), 0 14px 24px #0006; }
+.key { --kc: var(--k-shell); --ki: var(--k-shell-ink);
+  position: relative; width: 100%; aspect-ratio: 1; border-radius: 24%; display: grid; place-items: center;
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  background: radial-gradient(90% 70% at 50% 25%, #ffffff38, transparent 70%), var(--kc);
+  color: var(--ki);
+  box-shadow: 0 0 0 4px var(--well), inset 0 -4px 0 #00000026, inset 0 2px 0 #ffffff45, 0 5px 0 4px var(--well), 0 8px 10px 3px #0000002a;
+  transition: transform .07s, box-shadow .07s; }
+.key.pressed, .key:active { transform: translateY(3px);
+  box-shadow: 0 0 0 4px var(--well), inset 0 -1px 0 #00000026, inset 0 2px 0 #ffffff30, 0 2px 0 4px var(--well), 0 3px 4px 3px #0000002a; }
+.t-claude { --kc: var(--k-claude); --ki: var(--k-claude-ink); }
+.t-codex { --kc: var(--k-codex); --ki: var(--k-codex-ink); }
+.t-opencode { --kc: var(--k-opencode); --ki: var(--k-opencode-ink); }
+.t-pi { --kc: var(--k-pi); --ki: var(--k-pi-ink); }
+.logo { width: 1em; height: 1em; vertical-align: -.14em; flex: none; }
+.kicon { font: 700 clamp(22px, 8vw, 30px)/1 var(--mono); }
+.key.needs { animation: nudge 2.4s ease-in-out infinite; }
+.key.add { background: transparent; color: var(--ink3); box-shadow: 0 0 0 4px var(--well), inset 0 0 0 1.5px var(--seam); }
+.key.add .kicon { font-weight: 400; font-size: 26px; }
+.klabel { max-width: 100%; font: 600 10px/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kstate { font: 700 12px/1 var(--mono); letter-spacing: .06em; color: var(--ink); margin-top: -3px; }
+.kstate.off { visibility: hidden; }
+.cell:has(.needs) .kstate { color: var(--orange); }
+.legend { display: flex; justify-content: center; text-align: center; gap: 0; margin: 16px 0 0; font: 600 8px var(--mono); letter-spacing: .16em; color: var(--ink3); }
+
+#view-deck { display: flex; flex-direction: column; }
+.grille { flex: 1; min-height: 60px; margin: 18px 6px 10px; border-radius: 18px;
+  background: radial-gradient(circle, var(--well) 0 2.2px, transparent 2.6px) 0 0 / 12px 12px;
+  -webkit-mask: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+  mask: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent); opacity: .9; }
+
+.ghost { padding: 8px 12px; border-radius: 10px; font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  background: var(--k-shell); color: var(--k-shell-ink);
+  box-shadow: 0 0 0 2px var(--well), inset 0 -2px 0 #0002, inset 0 1px 0 #fff6, 0 3px 0 2px var(--well); }
+.ghost:active { transform: translateY(2px); box-shadow: 0 0 0 2px var(--well), inset 0 1px 0 #fff6, 0 1px 0 2px var(--well); }
+.ghost.small { padding: 5px 9px; font-size: 10px; }
+a.ghost { display: inline-block; text-decoration: none; }
+a.ghost[hidden] { display: none; }
+.danger { color: var(--red); }
+.primary { padding: 8px 14px; border-radius: 10px; font: 700 12px var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  background: var(--accent); color: var(--on-accent);
+  box-shadow: 0 0 0 2px var(--well), inset 0 -2px 0 #0003, inset 0 1px 0 #fff5, 0 3px 0 2px var(--well); }
+.primary:active { transform: translateY(2px); }
+#msg { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: none; outline: none;
+  background: var(--body-lo); color: var(--ink); box-shadow: inset 0 2px 4px #0003, 0 1px 0 #ffffff50; }
+#msg:focus { box-shadow: inset 0 2px 4px #0003, 0 0 0 2px var(--accent); }
+
+/* Another host's tab: a dot of that host's colour; an offline host's tabs are dimmed */
+#chips .chip.remote { position: relative; }
+#chips .chip.remote::after { content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--hostled); box-shadow: 0 0 4px var(--hostled); }
+#chips .chip.off { opacity: .45; }
+#chips .tabname { width: 100%; min-width: 0; padding: 0 2px; border: none; border-radius: 4px; outline: 1px solid var(--power);
+  background: #0006; color: inherit; font: inherit; user-select: text; -webkit-user-select: text; }
+#chips > .foldername { width: auto; margin: 2px 4px; padding: 6px 8px; font: 600 13px var(--ui); color: var(--ink); }
+#chips .chip, #chips .chip * { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* Tabs in arrange mode (long press): they wiggle and drag at once; the row doesn't scroll under the finger */
+#chips.arranging .chip[data-name] { touch-action: none; animation: tabwiggle .32s ease-in-out infinite alternate; }
+#chips.arranging .chip[data-name]:nth-child(2n) { animation-delay: -.16s; }
+#chips.arranging .newchip { padding: 0 12px; font: 700 12px var(--mono); letter-spacing: .06em; background: var(--accent); color: var(--on-accent); }
+@keyframes tabwiggle { from { transform: rotate(-1.2deg); } to { transform: rotate(1.2deg); } }
+
+/* ---- TERM ---- */
+.console { display: flex; flex-direction: column; padding: 0 0 4px; overflow: hidden; }
+/* -3px left keeps the first chip on the 16px gutter while leaving room for its well shadow; right bleeds to the screen edge */
+#chips { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 4px; overflow-y: auto; flex: none;
+  max-height: 55%; min-height: 0; scrollbar-width: none; }
+#chips::-webkit-scrollbar { display: none; }
+#chips[hidden] { display: none; }
+/* Session tabs: flat rows like the Harness and message-box menus; --chip-ink is the surface's text colour */
+#padcol { --chip-ink: var(--screen-ink); }
+.chip { flex: none; display: flex; align-items: center; gap: 6px; padding: 4px 10px; min-height: 28px; border-radius: 10px; max-width: 170px;
+  font: 500 12px var(--ui); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--chip-ink, var(--ink)) 7%, transparent); color: var(--chip-ink, var(--ink)); }
+.chip:hover { background: color-mix(in srgb, var(--chip-ink, var(--ink)) 12%, transparent); }
+.chip.c-needs_you { color: var(--orange); }
+.ticon { width: 1.15em; height: 1.15em; vertical-align: -.2em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* the open tab: pressed in, ringed and washed in its session's colour (--tint, set on the tab) */
+.chip.on { background: color-mix(in srgb, var(--tint, var(--accent)) 22%, transparent); box-shadow: inset 0 0 0 1.5px var(--tint, var(--accent)); }
+/* active chip after one tap: a second tap kills the session */
+.chip.armed { background: var(--red); color: #fff; }
+.chip.lifted { position: relative; z-index: 2; opacity: .9; box-shadow: 0 0 0 2px var(--accent), 0 8px 14px #0006; }
+.chip .ctext { display: flex; flex-direction: column; min-width: 104px; line-height: 1.15; }
+/* Session logos in the session's own colour (app.js tint(); the same on its Agents card) */
+.chip .cicon { font-size: 15px; }
+.cicon.tinted { color: var(--tint); }
+.chip.armed .cicon { color: #fff; }
+/* armed: the logo becomes an X (kept in place, hidden, so the tab doesn't change size) */
+.chip.armed .cicon { position: relative; visibility: hidden; }
+.chip.armed .cicon::after { content: "\2715"; visibility: visible; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center; font: 700 15px var(--mono); }
+/* the title never widens the tab (width 0, min 100% = the label's width); a long one scrolls as a ticker */
+.chip .csub { display: block; width: 0; min-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 12px var(--ui); opacity: .65; }
+.chip .csub.tick > span { display: inline-block; }
+.chip .csub.tick { -webkit-mask: linear-gradient(90deg, #0000, #000 6px, #000 calc(100% - 6px), #0000); mask: linear-gradient(90deg, #0000, #000 6px, #000 calc(100% - 6px), #0000); }
+.chip .csub.tick > span { animation: ticker linear infinite; }
+@keyframes ticker { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .chip .csub.tick > span { animation: none; } }
+.newchip { justify-content: center; min-width: 34px; font: 600 15px/14px var(--mono); }
+/* as many equal columns as fit, then a second row: one row of six ran OpenClaw off a phone's edge */
+.agentpick { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.agentpick[hidden] { display: none; }
+.agentpick label { margin: 0; }
+.agentpick input { position: absolute; opacity: 0; }
+.agentpick span { display: block; padding: 10px; border-radius: 10px; text-align: center; font: 600 12px var(--mono);
+  color: var(--k-shell-ink); background: var(--k-shell);
+  box-shadow: 0 0 0 2px var(--well), inset 0 -2px 0 #0002, inset 0 1px 0 #fff6, 0 3px 0 2px var(--well); }
+.agentpick input:checked + span { transform: translateY(2px); background: var(--ink); color: var(--body-hi);
+  box-shadow: 0 0 0 2px var(--well), 0 1px 0 2px var(--well); }
+.cicon { color: var(--ink3); }
+.termwrap { flex: 1; min-height: 0; margin: 0 14px; position: relative; display: flex; }
+#term, #term .xterm-viewport { overscroll-behavior: none; touch-action: none; }
+/* The terminal opens in an unpadded inner box: FitAddon sizes to its parent's height and ignores the
+   parent's padding, so opening it straight in the padded #term frame spilled the last row past the frame. */
+.termhost { flex: 1; min-width: 0; min-height: 0; position: relative; overflow: hidden; }
+/* Agent tabs: the agent's status line (cropped out of the terminal) as a bar of chips above it, spread evenly. */
+/* One row, fixed height (a chip's): a bar that grew (chips wrapping, the first chips arriving) would resize the agent
+   mid-session, and it redraws (garbles) its footer. Chips too wide for the row shrink with an ellipsis. */
+.agentbar { flex: none; display: flex; gap: 4px; height: 20px; overflow: hidden; margin: 0 14px 8px; }
+.agentbar[hidden] { display: none; }
+.agentbar .fpart { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.fpart { flex: none; padding: 3px 5px; border-radius: 6px; background: var(--screen); color: #b9b4a8; font: 500 10px/1.4 var(--mono); white-space: nowrap; }
+.fpart.model { color: #fff; font-weight: 700; }
+.fpart.mode { color: #ff9a8a; }
+/* PC: the status line is one bar, its parts split by hairlines (user) */
+@media (min-width: 1100px) {
+  .agentbar { gap: 0; border-radius: 6px; background: var(--screen); }
+  /* at the foot of the chat, under the message box: full width, on the chat's own black, no dividers (user) */
+  #term.chat > .agentbar { margin: 0; padding: 0 var(--gutter); border-radius: 0; background: none; }
+  #term.chat > .agentbar .fpart + .fpart { border-left: none; }
+  /* it sits centred in the message box's bottom gutter, so the gutter matches the sides (user) */
+  #term.chat > #say:has(~ .agentbar) { padding-bottom: 0; } /* ~: the project bar sits between them */
+  #term.chat > .agentbar { height: 10px; margin: 6px 0 10px; } /* room under the message box and above the panel's edge (user) */
+  #term.chat > .agentbar { overflow: visible; }
+  #term.chat > .agentbar .fpart { padding-top: 0; padding-bottom: 0; line-height: 10px; transform: translateY(1px); } /* mono glyphs sit high in their line: 1px down looks centred */
+  #term.chat > .agentbar .fpart { color: #b9b4a8; font-weight: 500; letter-spacing: 0; } /* all one quiet gray, model and mode too (user) */
+  #view-term:has(#term.chat) { padding-top: 6px; padding-bottom: 22px; } /* room for the chat frame's rim, which the view clips; more below (user) */
+  #view-term:has(#term.chat) :is(#padcol, #shelf) { margin-top: -4px; margin-bottom: -4px; } /* the columns meet the rim's outer edge */
+  .agentbar .fpart { background: none; border-radius: 0; }
+  .agentbar .fpart + .fpart { border-left: 1px solid #ffffff1a; }
+}
+#term { flex: 1; min-width: 0; display: flex; padding: 8px; border-radius: 14px; background: var(--screen);
+  --gutter: 20px; /* flat on a PC: 2.7% of a wide chat was ~30px (too much), 12px too little (user) */
+  box-shadow: inset 0 3px 8px #000, 0 0 0 4px var(--well), 0 1px 0 5px #ffffff30; }
+/* Chat sessions (app.js attachChat): the agent's conversation on the terminal's screen, scrolled natively. */
+#term.chat { flex-direction: column; padding: 0; touch-action: auto; color: var(--screen-ink); font: var(--chatfont, 14px)/1.45 var(--ui); }
+/* Everything wraps: no sideways scrolling on a phone, and no scroll bars (touch scrolls). Side margin scales with
+   the screen width: about 35px on a PC, 12px on a phone. */
+.chatlog { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px var(--gutter); display: flex;
+  flex-direction: column; gap: 10px; scrollbar-width: none; }
+.chatlog::-webkit-scrollbar { display: none; }
+.chatlog:empty::before { content: "New chat: type a message below"; margin: auto; font: 500 calc(var(--chatfont, 14px) * .8) var(--mono); color: var(--ink3); }
+.cmsg { max-width: 92%; min-width: 0; overflow-wrap: anywhere; }
+.picking .cmsg { cursor: pointer; outline: 1px dashed #8888; outline-offset: 4px; border-radius: 14px; }
+.picking .cmsg.picked { outline: 2px solid var(--accent); }
+.selbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid #8884; }
+.selbar[hidden] { display: none; }
+.selbar #selcount { flex: 1; }
+.cmsg.user { align-self: flex-end; padding: 8px 12px; border-radius: 14px 14px 4px 14px; background: var(--accent);
+  color: var(--on-accent); white-space: pre-wrap; }
+.cmsg.agent { align-self: flex-start; display: flex; flex-direction: column; gap: 6px; max-width: 100%; }
+/* Messages between sessions (app.js peerLine): outlined, with From / To and the session above the text */
+.cmsg.user.cpeer, .csent { display: flex; flex-direction: column; padding: 6px 12px 8px; border: 1px solid var(--accent);
+  background: none; color: var(--screen-ink); white-space: pre-wrap; }
+.csent { align-self: flex-start; max-width: 100%; border-radius: 14px 14px 14px 4px; overflow-wrap: anywhere; }
+.cpeer > .cfrom, .csent > .cfrom { order: -1; margin-bottom: 3px; font: 500 calc(var(--chatfont, 14px) * .78) var(--mono);
+  color: var(--screen-dim); white-space: normal; }
+.cfrom .csess { padding: 0; border: 0; background: none; color: var(--screen-ink); font: inherit; text-decoration: underline;
+  text-underline-offset: 2px; cursor: pointer; }
+.csent > pre.cout { margin: 4px 0 0; padding: 0; background: none; color: var(--screen-dim); font: calc(var(--chatfont, 14px) * .72) var(--mono); }
+.csent > pre.cout:empty { display: none; }
+.csent.unsent { border-style: dashed; } /* not sent: Deck refused it (its answer shows below), or the command failed */
+.csent:is(.unsent, .err) > pre.cout { color: #ff8a80; }
+.cprose { white-space: pre-wrap; }
+/* The agent's words in a grey bubble (its tool calls and thinking stay bare) */
+.cmsg.agent > .cprose { align-self: flex-start; max-width: 100%; padding: 8px 12px; border-radius: 14px 14px 14px 4px; background: #ffffff17; }
+.cprose code, .cprose pre, .ctool pre { font: calc(var(--chatfont, 14px) * .8)/1.4 var(--mono); }
+.cprose code { padding: 1px 4px; border-radius: 4px; background: #ffffff14; }
+.cprose pre, .ctool pre { margin: 4px 0; padding: 8px; border-radius: 8px; background: #00000066; white-space: pre-wrap;
+  overflow-wrap: anywhere; }
+.cprose a { color: #8ab4ff; }
+.cprose blockquote { margin: 4px 0; padding: 0 0 0 10px; border-left: 3px solid #ffffff38; color: var(--screen-dim); }
+.cprose details.cfold { margin: 4px 0; }
+.cprose details.cfold > summary { cursor: pointer; font-weight: 600; }
+.cprose details.cfold > div { padding-left: 12px; }
+/* a reply's file (chatFile): an image fits the column, a download is a link */
+.cfile { align-self: flex-start; max-width: 100%; color: #8ab4ff; font-size: calc(var(--chatfont, 14px) * .9); }
+.cfile img { display: block; max-width: min(100%, 480px); max-height: 60vh; border-radius: 8px; }
+div.cfile { color: var(--screen-dim); }
+div.cfile.err { color: #ff8a80; }
+.cprose .ctable { margin: 4px 0; overflow-x: auto; scrollbar-width: none; }
+.cprose .ctable::-webkit-scrollbar { display: none; }
+.cprose table { border-collapse: collapse; white-space: normal; font-size: calc(var(--chatfont, 14px) * .8); }
+.cprose th, .cprose td { padding: 4px 8px; border: 1px solid #ffffff26; text-align: left; vertical-align: top; }
+.cprose th { background: #ffffff12; }
+.cprose .katex { font-size: 1em; white-space: normal; }
+.cprose .katex-display { margin: 6px 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.cprose .katex-display::-webkit-scrollbar { display: none; }
+.cthink, .ctool { color: var(--screen-dim); font-size: calc(var(--chatfont, 14px) * .8); }
+/* Settings > Tool calls in chats off: no commands or edits, and no reply part left empty by that */
+#term.notools .ctool, #term.notools .cmsg.agent:not(:has(> :not(.ctool))) { display: none; }
+.cthink summary, .ctool summary { cursor: pointer; font-family: var(--mono); overflow-wrap: anywhere; }
+/* A closed tool call is one line (cut with …); opening it shows the whole command */
+.ctool:not([open]) summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cthink > div { white-space: pre-wrap; padding: 4px 0 0 12px; }
+.cthinkhd { display: block; margin-bottom: 2px; font: 600 calc(var(--chatfont, 14px) * .7) var(--mono); letter-spacing: .08em; text-transform: uppercase; } /* a small label, not a heading (user) */
+/* Thinking reads at the chat's own size; tool calls stay small */
+.cthink { font-size: calc(var(--chatfont, 14px) * .9); } /* a little under the reply's (user) */
+.cthink.live { white-space: pre-wrap; font-style: italic; }
+.ctool b { color: var(--screen-ink); }
+.ctool.err summary { color: #ff8a80; }
+.ctool pre.cout:empty { display: none; }
+/* Each reply's fold bar, under the message it answers; it scrolls with the reply, not pinned at the top (user) */
+.cturn { align-self: stretch; margin: -2px -4px; padding: 3px 4px; border: none;
+  background: var(--screen); color: var(--screen-dim); font: 600 calc(var(--chatfont, 14px) * .8)/1.5 var(--mono); text-align: left; cursor: pointer; }
+.cturn[hidden] { display: none; }
+.cturnacts button:hover, .cturn:hover { color: var(--screen-ink); }
+.cturn.shut { color: var(--screen-ink); }
+.chatlog .folded { display: none !important; }
+/* Opened tool calls:a command line, coloured diffs, other arguments as name + value */
+.cdesc { display: none; }
+.ctool[open] .carg.cmd { display: none; }
+.ctool[open] .cdesc { display: inline; font-family: var(--ui); }
+.ctool pre.ccmd { color: var(--screen-ink); }
+.ctool pre.ccmd::before { content: "$ "; color: var(--screen-dim); }
+/* Diffs wrap long lines, so an opened tool call never needs a side scroll (user) */
+.ctool pre.cdiff { padding: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cdiff span { display: block; padding: 0 8px; }
+.cdiff .dadd { background: #2ea0432e; color: #aff5b4; }
+.cdiff .ddel { background: #f851492e; color: #ffc1ba; }
+.cdiff .dhunk { color: #79c0ff; }
+.ckv { margin: 4px 0; font: calc(var(--chatfont, 14px) * .8)/1.4 var(--mono); overflow-wrap: anywhere; }
+.ckv > span:first-child { color: var(--screen-dim); }
+.ckv > span:first-child::after { content: ":"; }
+.ckv pre { margin-top: 2px; }
+.cnote { align-self: center; color: var(--screen-dim); font-size: calc(var(--chatfont, 14px) * .8); white-space: pre-wrap; text-align: center; }
+.cnote.err { color: #ff8a80; }
+.cfailure { align-self: stretch; padding: 12px; border: 1px solid #ef635b80; border-radius: 10px;
+  background: #ef635b12; color: var(--screen-ink); font: calc(var(--chatfont, 14px) * .9)/1.5 var(--ui); }
+.cfailure strong { color: #ff8a80; }
+.cfailuretext { margin: 6px 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 14em; overflow: auto; }
+.cfailureacts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cfailureacts span { color: var(--screen-dim); font-size: .9em; }
+.cfailure button { padding: 8px 12px; border-radius: 8px; background: var(--accent); color: var(--on-accent); font: 600 1em var(--ui); }
+.cfailure button:disabled { opacity: .55; cursor: default; }
+.cask { padding: 10px; border-radius: 10px; background: #ffffff10; }
+.cask > .cprose { margin: 0 0 8px; }
+.cask > div:not(.cprose) { display: flex; flex-wrap: wrap; gap: 8px; }
+.cask button { padding: 6px 12px; border-radius: 8px; background: var(--accent); color: var(--on-accent); font: 600 calc(var(--chatfont, 14px) * .8) var(--ui); }
+.cask button:disabled { opacity: .4; }
+.cask button[aria-pressed=false] { background: transparent; color: inherit; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cask button:is(.cskip) { background: transparent; color: inherit; opacity: .7; box-shadow: inset 0 0 0 1px currentColor; }
+.cask .cother { flex: 1 1 160px; min-width: 0; padding: 6px 10px; border-radius: 8px; border: 1px solid #8886; background: transparent;
+  color: inherit; font: calc(var(--chatfont, 14px) * .85) var(--ui); }
+.cask > .cdone { font: 600 calc(var(--chatfont, 14px) * .8) var(--ui); opacity: .6; }
+.cask button { max-width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.chatstatus { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px var(--gutter);
+  border-top: 1px solid #ffffff14; color: var(--screen-dim); font: calc(var(--chatfont, 14px) * .8) var(--mono); }
+.chatstatus[hidden] { display: none; }
+/* The project's main page atop the chat (app.js renderProjBar): placed last in #term, shown first */
+.projbar { order: -1; flex: none; display: flex; align-items: center; gap: 8px; padding: 4px var(--gutter);
+  border-bottom: 1px solid #ffffff14; font: calc(var(--chatfont, 14px) * .8) var(--mono); color: var(--screen-dim); }
+.projbar[hidden] { display: none; }
+.projbar .projname { flex: none; }
+.projbar a { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--screen-ink);
+  text-align: center; } /* centred in the bar (user) */
+.projbar button { flex: none; padding: 0 4px; border: none; background: none; color: inherit; font: inherit; cursor: pointer; }
+/* Held messages (typed while the agent works): dimmed until they go, each with Send now */
+/* Under each reply: save it to the shelf */
+.cturnacts { display: flex; flex-wrap: wrap; gap: 0 14px; align-self: flex-start; margin: -4px -4px 0; }
+.cturnacts button { white-space: nowrap; } /* a narrow chat moves the time down a line, not "Save" over "messages" */
+.cturnacts[hidden] { display: none; }
+/* When a message was sent (just the time; the agent also gets the device), when its reply finished */
+.cts { font: 500 calc(var(--chatfont, 14px) * .8)/1.4 var(--mono); opacity: .7; white-space: nowrap; }
+.cmsg.user > details.cattached { margin-top: 6px; white-space: normal; }
+.cattached > summary { cursor: pointer; opacity: .85; font-size: .9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cattached > .cprose { margin-top: 6px; padding-top: 6px; border-top: 1px solid #fff4; }
+.cmsg.user > span { display: block; } /* no line box round it: the time sits right under the text */
+/* the time just under your bubble, outside it, at its right edge (user) */
+.cmsg.user:has(> .cts) { position: relative; margin-bottom: 12px; }
+.cmsg.user > .cts { position: absolute; top: 100%; right: 4px; margin-top: 3px; color: var(--screen-dim); opacity: 1; line-height: 1; }
+.cturnacts .cts { align-self: center; padding: 3px 4px; color: var(--screen-dim); }
+@media (pointer: coarse) { /* finger-sized */
+  .shelfdel { padding: 6px 10px; margin-top: -7px; }
+  .attx { padding: 8px 12px; }
+}
+.cturnacts button { padding: 3px 4px; border: none; background: none; color: var(--screen-dim); font: 600 calc(var(--chatfont, 14px) * .8)/1.5 var(--mono); cursor: pointer; } /* plain text, like the Hide bar above a reply */
+@media (max-width: 1099px) { /* phones: the reply's Hide buttons smaller (user) */
+  .cturn, .cturnacts button { font-size: calc(var(--chatfont, 14px) * .66); }
+  .cturnacts { gap: 0 10px; margin: -4px -2px 0; } /* -2px: the buttons' padding, so their text lines up with the chat's */
+  .cturnacts button { padding: 1px 2px; }
+}
+/* The shelf: a column right of the chat; shut, a thin strip with its name */
+#shelf { flex: none; width: 260px; margin-left: 8px; display: flex; flex-direction: column; min-height: 0; border-radius: 14px;
+  background: var(--screen); color: var(--screen-ink); font: var(--chatfont, 14px)/1.45 var(--ui); overflow: hidden; }
+#shelf[hidden] { display: none; }
+/* the collapse button, as the left column's (#padhead): a centred arrow */
+#shelfhead { flex: none; padding: 6px 0 2px; border: none; background: none; color: var(--screen-dim); text-align: center;
+  font: 700 12px var(--mono); cursor: pointer; }
+#shelf:not(.shut) .shelflabel { display: none; }
+#shelf:not(.shut) #shelfhead { padding-bottom: 6px; border-bottom: 1px solid #ffffff14; } /* a rule under the arrow (user) */
+#shelf.shut .shelflabel { font: 600 calc(var(--chatfont, 14px) * .8) var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+#shelfrow { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; padding: 6px 12px;
+  border-bottom: 1px solid #ffffff14; }
+.shelfrowname { color: var(--screen-dim); font: 600 calc(var(--chatfont, 14px) * .8) var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+#shelf.shut #shelfrow { display: none; }
+#shelflist { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; scrollbar-width: none; }
+#shelflist:empty::before { content: "Save turn or Save messages under a reply puts it here"; margin: auto; padding: 12px; text-align: center;
+  color: var(--screen-dim); font-size: calc(var(--chatfont, 14px) * .8); }
+#shelf.shut { width: 34px; }
+#shelfhead::after { content: "›"; } /* collapse: tucks to the right */
+#shelf.shut #shelfhead::after { content: "‹"; display: block; margin-top: 6px; }
+#shelfshare { display: flex; align-items: center; gap: 6px; color: var(--screen-dim); font: 500 calc(var(--chatfont, 14px) * .8) var(--ui);
+  cursor: pointer; }
+#shelfshare input { accent-color: var(--accent); margin: 0; }
+#shelf.shut #shelfshare { display: none; }
+#shelf.shut #shelfhead { flex: 1; writing-mode: vertical-rl; padding: 12px 8px; border: none; text-align: start; }
+#shelf.shut #shelflist { display: none; }
+.shelfitem { padding: 11px 12px; border-radius: 10px; background: #ffffff10; font-size: calc(var(--chatfont, 14px) * .9); line-height: 1.45; } /* rows as tall as the session tabs (user) */
+.shelfitem summary { cursor: pointer; overflow-wrap: anywhere; }
+.shelfitem:not([open]) summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* shut, a long title shrinks to an ellipsis so a pinned page's ↗ stays in view (user) */
+.shelfitem:not([open]) > summary { display: flex; align-items: center; }
+.shelfitem:not([open]) > summary > .shelftitle { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* a pinned page's ↗: a fixed slot at the row's right, just left of the bin, so it lines up down the list (user) */
+.shelfitem .shelfopen { flex: none; }
+.shelfitem:not([open]) > summary:has(> .shelfopen) { padding-right: 56px; }
+.shelfitem:not([open]) > summary > .shelfopen { position: absolute; right: 26px; top: 50%; transform: translateY(-50%); margin: 0; }
+.shelfitem:not([open]) > summary > .shelftitle { flex: 1 1 auto; }
+.shelfitem > .cprose { margin-top: 8px; }
+/* the session it came from: a small line on the bar, every detail when open */
+.shelfmeta { margin-top: 8px; color: var(--screen-dim); font: 500 calc(var(--chatfont, 14px) * .8) var(--mono); }
+.shelfmeta > summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+  text-overflow: ellipsis; }
+.shelfmeta .shelfmetafull { font-size: 1em; }
+.shelfmetafull { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; margin: 8px 0 0; padding: 6px 8px; border-radius: 6px;
+  background: #0003; color: var(--screen-dim); font: 500 calc(var(--chatfont, 14px) * .8)/1.5 var(--mono); }
+.shelfmetafull dt { color: var(--screen-dim); opacity: .7; }
+.shelfmetafull dd { margin: 0; overflow-wrap: anywhere; color: var(--screen-ink); }
+/* no expand arrows on the shelf: a bar opens on a tap */
+#shelf summary { list-style: none; }
+#shelf summary::-webkit-details-marker { display: none; }
+/* the bin: centred on its row's right edge, the same in every item and folder */
+.shelfitem > summary { position: relative; padding-right: 30px; }
+.shelfitem > summary > .shelfdel { position: absolute; right: -4px; top: 50%; transform: translateY(-50%); margin: 0; }
+.shelffolder > summary > .shelfdel { right: -4px; } /* the same edge as an item's bin */
+.shelfdel { float: right; margin: -3px -4px 0 6px; padding: 2px 6px; border: none; border-radius: 6px; background: none;
+  font-size: calc(var(--chatfont, 14px) * .8); line-height: 1.3; opacity: .55; cursor: pointer; }
+.shelfdel:hover { opacity: 1; }
+/* armed: a red pill, "Delete?" beside the bin; it widens over the title's end, so the title fades under it rather
+   than showing through (user: "delete dialog weird") */
+.shelfdel.armed { opacity: 1; z-index: 1; right: 0; padding: 3px 9px; background: #e5484d; color: #fff; box-shadow: -14px 0 10px -6px var(--screen); } /* right: 0: a closed row's summary clips at its edge, so the pill stays inside it */
+.shelfdel.armed::after { content: " Delete?"; margin-left: 2px; color: #fff; font: 600 calc(var(--chatfont, 14px) * .8) var(--ui); white-space: nowrap; }
+.shelfitem > summary:has(> .shelfdel.armed) .shelftitle { -webkit-mask-image: linear-gradient(90deg, #000 55%, transparent 80%); mask-image: linear-gradient(90deg, #000 55%, transparent 80%); }
+/* each item's kind as a small mark before its title, drawn in CSS: saved chat (a bubble with a tail corner), a
+   document (a page with a folded corner), a pinned page (a ring) */
+.shelfglyph { display: inline-block; flex: none; width: 10px; height: 10px; margin-right: 7px; vertical-align: -1px; opacity: .55;
+  background: currentColor; border-radius: 3px 3px 3px 0; }
+.shelfitem.kind-doc .shelfglyph, .shelfitem.kind-upload .shelfglyph { border-radius: 1px; clip-path: polygon(0 0, 65% 0, 100% 35%, 100% 100%, 0 100%); }
+.shelfitem.kind-link .shelfglyph { background: none; border-radius: 50%; box-shadow: inset 0 0 0 2px currentColor; }
+.shelfkind { padding: 1px 6px; border-radius: 5px; font: 700 calc(var(--chatfont, 14px) * .8) var(--mono); background: #ffffff1a; color: var(--screen-dim); }
+.shelfkind.k-nl { background: color-mix(in srgb, var(--accent) 35%, transparent); color: var(--screen-ink); }
+.shelfacts { display: flex; gap: 6px; margin: 4px 0 8px; }
+.shelfacts button { padding: 3px 10px; border-radius: 6px; background: #ffffff1a; color: var(--screen-ink); font: 600 calc(var(--chatfont, 14px) * .8) var(--ui); }
+/* Dragging on the shelf: the item follows the finger; its target shows a line (before/after) or a ring (into a folder) */
+#shelflist summary { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.shelfitem.dragging { pointer-events: none; opacity: .4; }
+.shelfghost { position: fixed; top: 0; left: 0; z-index: 1000; max-width: 220px; padding: 6px 10px; border-radius: 8px;
+  pointer-events: none; background: var(--accent); color: var(--on-accent); font: 600 12px var(--ui); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; box-shadow: 0 6px 18px #0008; }
+#term.chat.dropchat { box-shadow: inset 0 0 0 2px var(--accent); }
+/* Shelf items attached to the next message: one line each in the message box, above the text; tap to read one.
+   With some there, the box (not the text area) wears the field's look and grows to hold them. */
+.msgfield { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.msgfield #msg { flex: 1 0 auto; }
+#term.chat .msgfield:has(> #attach:not([hidden])) { border-radius: 10px; background: #ffffff12; }
+#term.chat .msgfield:has(> #attach:not([hidden])) #msg { background: transparent; }
+#attach { flex: none; display: flex; flex-direction: column; gap: 4px; max-height: 40vh; overflow-y: auto; padding: 6px 6px 0;
+  scrollbar-width: none; }
+#attach[hidden] { display: none; }
+#attach button { width: auto; border-radius: 6px; background: none; box-shadow: none; transform: none; }
+.att { border-radius: 8px; background: #ffffff10; }
+.atthead { display: flex; align-items: center; }
+.atttoggle { flex: 1; min-width: 0; padding: 6px 8px; border: none; background: none; color: var(--screen-ink); text-align: left;
+  font: 500 calc(var(--chatfont, 14px) * .8) var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.attx { flex: none; padding: 4px 10px; border: none; background: none; color: var(--screen-dim); font-size: 1em; cursor: pointer; }
+.attbody { padding: 0 10px 8px; font-size: calc(var(--chatfont, 14px) * .8); max-height: 30vh; overflow-y: auto; }.shelfitem.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+.shelfitem.drop-after { box-shadow: 0 3px 0 var(--accent); }
+.shelfitem.drop-into { box-shadow: inset 0 0 0 2px var(--accent); }
+.shelffolder { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; background: #ffffff0a; border: 1px solid #ffffff1f; }
+.shelffolder > summary { font-weight: 700; font-size: 1em; }
+/* a folder stands apart from single items (user): no card of its own, a folder icon before its name, and its items
+   indented under a guide line, as in a file tree */
+.shelffolder { background: none; border: none; padding: 6px 0 2px; }
+/* the folder's row reads as a heading, like the tab column's host headers: a small accent folder, the name in
+   spaced caps, the count as a pill; its items step in under a rail (user: "folder hierarchy look") */
+.shelffolder > summary { display: flex; align-items: center; gap: 8px; padding: 6px 30px 6px 10px; /* 30px: room for the bin */
+  font: 600 calc(var(--chatfont, 14px) * .78) var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--screen-dim); }
+.shelffolder[open] > summary { color: var(--screen-ink); }
+.shelffolder > summary .shelftitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shelffolder > summary .shelftitle::before { content: ""; display: inline-block; width: 1.1em; height: .85em; margin-right: .5em;
+  vertical-align: -.08em; border-radius: 2px; background: currentColor; /* no accent on the shelf (user) */
+  clip-path: polygon(0 0, 40% 0, 50% 18%, 100% 18%, 100% 100%, 0 100%); }
+.shelffolder > summary .shelfcount { flex: none; margin: 0; padding: 0 7px; border-radius: 9px; background: #ffffff1a; font-size: .85em; letter-spacing: 0; }
+.shelffolder[open] > summary .shelfcount { display: none; } /* open: the items are the count */
+.shelffolder > .shelfitem, .shelffolder > .shelfacts, .shelffolder > .shelfname { margin-left: 12px; }
+.shelffolder > .shelfitem { border-left: 2px solid #ffffff2a; border-radius: 0 10px 10px 0; }
+.shelffolder > .shelfacts { padding-left: 10px; }
+#shelflist.drop-end { box-shadow: inset 0 -3px 0 var(--accent); }
+.shelffolder > .shelfitem { background: #ffffff10; }
+.shelfcount { margin-left: .4em; color: var(--screen-dim); font: 600 calc(var(--chatfont, 14px) * .8) var(--mono); }
+.shelfname { padding: 6px 8px; border: none; border-radius: 6px; background: #ffffff1a; color: var(--screen-ink); font: inherit; }
+.shelfname[hidden] { display: none; }
+.shelftrash { margin-top: auto; padding-top: 8px; border-top: 1px solid #ffffff14; display: flex; flex-direction: column; gap: 6px; }
+.shelftrash:not([open]) { gap: 0; } /* shut, its hidden rows still take a gap: none, so it lines up with the tab trash */
+.shelftrash > summary { cursor: pointer; color: var(--screen-dim); font: 600 12px var(--ui); } /* as the tab trash */
+.shelftrash[open] > summary { margin-bottom: 6px; }
+/* both trashes (the tab column's and the shelf's) look alike: a plain header, then dimmed one-line rows (user) */
+:is(.shelftrash, #tabtrash) .shelfitem { opacity: .7; }
+:is(.shelftrash, #tabtrash) > summary, #tabtrash .shelfitem > summary { list-style: none; }
+:is(.shelftrash, #tabtrash) > summary::-webkit-details-marker, #tabtrash .shelfitem > summary::-webkit-details-marker { display: none; }
+/* both trash headers: icon and label centred across the column and in the row (user) */
+:is(.shelftrash, #tabtrash) > summary { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; }
+#tabtrash .shelfitem .cicon svg { width: 1em; height: 1em; vertical-align: -.125em; }
+#tabtrashlist { display: flex; flex-direction: column; gap: 6px; }
+/* Phones and narrow windows: thin bezels round the screen (with room for the bottom one), a hairline collapsed shelf,
+   and the agent's status as one plain line instead of chips */
+@media (max-width: 1099px) {
+  /* less air above the screen, so the terminal gets the height */
+  .top { gap: 2px; padding-top: max(4px, env(safe-area-inset-top)); padding-bottom: 2px; }
+  .termwrap { margin: 0 6px 6px; }
+  #term { box-shadow: inset 0 3px 8px #000, 0 0 0 2px var(--well), 0 1px 0 3px #ffffff30; }
+  #shelf.shut { width: 14px; margin-left: 5px; border-radius: 7px; }
+  #shelf.shut #shelfhead { padding: 10px 0; font-size: 8px; letter-spacing: .12em; text-align: center; }
+  /* spread across the width, centred (user); a part too long for its share ends in … */
+  .agentbar { display: flex; justify-content: space-evenly; gap: 6px; height: auto; margin: 0 8px 3px; white-space: nowrap; overflow: hidden;
+    font: 500 10px/1.4 var(--mono); color: var(--ink2); }
+  .agentbar .fpart { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 0; border-radius: 0; background: none;
+    color: inherit; font: inherit; }
+  .agentbar .fpart.model { color: var(--ink); font-weight: 700; }
+  .agentbar .fpart.mode { color: var(--red, #d93a2b); }
+}
+/* The Pad column: left of the screen; shut, a thin strip; open, small square keys over the screen's edge */
+.tabbar button[data-view=deck], #view-deck { display: none !important; }
+@media all {
+  #padcol { flex: none; position: relative; display: flex; flex-direction: column; width: 34px; margin-right: 5px; border-radius: 9px;
+    background: var(--screen); overflow: hidden; }
+  #padhead { flex: none; padding: 6px 0 2px; border: none; background: none; color: var(--screen-dim); font: 700 12px var(--mono);
+    cursor: pointer; }
+  #padhead::after { content: "›"; }
+  #padcol:not(.shut) #padhead::after { content: "‹"; }
+  /* shut: the Pad and Add script keep their room, unseen, so the trash stays where it is when open */
+  #padcol.shut #padslot { visibility: hidden; }
+  /* open: names and keys; a phone's lies over the screen's edge, a PC's sits beside it (below) */
+  #padcol:not(.shut) { position: absolute; top: 0; left: 0; bottom: 0; z-index: 6; width: min(48%, 210px); margin: 0; border-radius: 14px;
+    box-shadow: 8px 0 24px #000a; }
+  /* shut: the tabs as their icons (agent logo in the session's colour) */
+  #padcol.shut #chips { padding: 4px 3px; }
+  #padcol.shut .chip { justify-content: center; padding: 0; min-height: 36px; gap: 0; }
+  #padcol.shut .chip .ctext { display: none; }
+  #padcol.shut .newchip { font-size: 15px; }
+  #padcol.shut #chips.arranging .newchip { font-size: 0; padding: 0; }
+  #padcol.shut #chips.arranging .newchip::after { content: "✓"; font-size: 12px; }
+  #padcol .chip { max-width: none; min-height: 40px; padding: 6px 10px; gap: 8px; font-size: 12px; }
+  #padcol .chip .cicon { font-size: 18px; }
+  #padcol .chip .csub { font-size: 12px; }
+  #padcol .chip .ctext { min-width: 0; flex: 1; }
+  #tabtrash { flex: none; max-height: 40%; overflow-y: auto; padding: 8px; /* as the shelf trash: same height from the bottom (user) */ border-top: 1px solid #ffffff14;
+    color: var(--screen-dim); font: 600 12px var(--ui); }
+  /* shut: the tab trash shows as its can only */
+  #padcol.shut #tabtrash { padding-left: 0; padding-right: 0; border-top-color: transparent; text-align: center; }
+  #tabtrash > summary { height: 32px; }
+  #padcol.shut #tabtrash > summary { list-style: none; }
+  #padcol.shut #tabtrash > summary::-webkit-details-marker { display: none; }
+  #padcol.shut #tabtrash .ttlabel, #padcol.shut #tabtrashlist { display: none; }
+  /* the Scripts header: not another host (user): a filled bar with a play mark, set off from the hosts by a rule */
+  #padbar { flex: none; display: flex; align-items: center; gap: 7px; margin: 4px 4px 6px; padding: 7px 8px; border-radius: 8px;
+    background: #ffffff0f; font: 700 11px var(--ui); letter-spacing: .04em; text-transform: none; color: var(--screen-ink); }
+  #padbar .chled { flex: none; width: 0; height: 0; border-radius: 0; background: none;
+    border-left: 7px solid var(--screen-dim); border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; } /* ▶ */
+  #padbar + #padslot:not(:has(.cell)) + #chips, #padslot + #chips { border-top: 1px solid #ffffff14; padding-top: 6px; }
+  #padbar .chfold { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; padding: 0; border: 0; background: none;
+    color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+  #padbar .chfold .fchev { flex: none; opacity: .6; transform: rotate(90deg); transition: transform .15s; }
+  #padcol.scriptshut #padbar .chfold .fchev { transform: none; }
+  #padbar .chnew { margin-left: auto; flex: none; min-width: 24px; height: 20px; padding: 0 6px; border: 1px solid currentColor;
+    border-radius: 6px; background: none; color: inherit; font: 600 14px/1 var(--mono); cursor: pointer; opacity: .8; }
+  #padcol.shut #padbar .chname, #padcol.shut #padbar .chfold .fchev { display: none; }
+  #padcol.shut #padbar { justify-content: center; padding-left: 0; padding-right: 0; }
+  #padcol.shut #padbar .chnew { display: none; }
+  #padcol.scriptshut #padslot { display: none; }
+  /* The split (user): tabs fill the column down to the scripts, which take what they need up to half of it; the
+     Scripts bar (fold, + Add) stays at the foot, folded or not (user) */
+  #padcol #chips { flex: 1 1 0; min-height: 0; max-height: none; }
+  #padslot { flex: 0 1 auto; max-height: 50%; min-height: 0; }
+  /* No rule (user): the scripts open in a subtle bubble above the Scripts bar, only as tall as they need */
+  #padcol:not(.shut) #padslot { margin: 2px 4px 0; border-radius: 10px; background: color-mix(in srgb, var(--screen-ink) 5%, transparent); }
+  #padslot:not(:has(.cell)) { display: none; }
+  #padcol.noscripts :is(#padbar, #padslot) { display: none; } /* no scripts and not switched on: no bar (user) */
+  #tabtrash > summary { cursor: pointer; }
+  #tabtrash[open] > summary { margin-bottom: 6px; }
+  #padslot { overflow-y: auto; scrollbar-width: none; padding: 6px 8px 10px; } /* no rule under the + tab (user) */
+  /* Scripts as rows, like the session tabs above them (user): a small key-coloured icon, the name, the run clock */
+  /* (each key is also a .chip, so it takes the tabs' sizes at every width) */
+  #padslot { padding: 4px; }
+  #padslot #pad { display: flex; flex-direction: column; gap: 6px; }
+  #padslot .cell { display: block; }
+  #padslot .key { width: 100%; aspect-ratio: auto; box-shadow: none; }
+  #padslot .key.pressed, #padslot .key:active { transform: translateY(1px); box-shadow: none; }
+  #padslot .key.lit { box-shadow: inset 0 0 0 1.5px var(--kc); }
+  #padslot .kicon { flex: none; display: grid; place-items: center; width: 1.3em; height: 1.3em; border-radius: 6px; font-size: inherit;
+    background: var(--kc); color: var(--ki); }
+  #padslot .kicon .logo { width: .8em; height: .8em; }
+  #padslot .klabel { flex: 1; min-width: 0; text-align: left; font: inherit; letter-spacing: 0; text-transform: none; color: inherit; }
+  #padslot .kstate { flex: none; margin: 0; font-size: .8em; color: var(--screen-dim); }
+  #padslot .kstate.off { display: none; }
+  #padslot .key.needs .kstate { color: var(--orange); }
+  /* scripts are not conversations (user: "differentiate scripts"): slim rows, mono labels, a small square icon, a
+     hairline instead of the tabs' card; these win over #padcol .chip at every width */
+  #padcol #padslot .key.chip { min-height: 32px; padding: 0 10px; gap: 8px; border-radius: 8px; background: none;
+    box-shadow: inset 0 0 0 1px #ffffff14; font: 500 12px/1 var(--mono); letter-spacing: 0; color: var(--screen-ink); }
+  #padcol #padslot .key.chip:hover { background: #ffffff0a; }
+  #padcol #padslot .key.chip.lit { box-shadow: inset 0 0 0 1.5px var(--kc); }
+  #padcol #padslot .kicon { width: 16px; height: 16px; border-radius: 4px; font-size: 10px; }
+  #padcol #padslot .kicon .logo { width: 10px; height: 10px; }
+  #padslot #pad { gap: 4px; }
+}
+/* A phone, shut: a strip as thin as the shut shelf's, its tabs as small logos (still tappable) */
+@media (max-width: 1099px) {
+  #padcol.shut { width: 14px; margin-right: 5px; border-radius: 7px; cursor: pointer; }
+  /* an open column lies over the chat, out of the row: keep its shut strip's room (14px + 5px) so the chat text doesn't reflow */
+  .termwrap:has(#padcol:not(.shut)) { padding-left: 19px; }
+  .termwrap:has(#shelf:not(.shut)) { padding-right: 19px; }
+  /* open or shut, the header and every tab keep their height and place: opening only widens the column */
+  #padhead { height: 22px; padding: 0; font-size: 12px; line-height: 22px; }
+  #padcol #chips { padding-top: 4px; padding-bottom: 4px; gap: 4px; }
+  #padcol.shut #chips { padding-left: 0; padding-right: 0; }
+  #padcol .chip { min-height: 44px; padding-top: 0; padding-bottom: 0; }
+  #padcol.shut .chip { min-height: 44px; border-radius: 0; background: none; box-shadow: none; }
+  #padcol.shut .chip.on { background: color-mix(in srgb, var(--tint, var(--accent)) 30%, transparent); }
+  #padcol.shut .chip .cicon { font-size: 12px; }
+  #padcol.shut .newchip { min-width: 0; font-size: 12px; }
+  #padcol.shut #tabtrash { font-size: 12px; }
+  /* the 14px strip has no room for a host's + (it stuck out half cut): just its LED; open the column to add a tab */
+  #padcol.shut #chips .chiphost .chnew { display: none; }
+}
+@media (min-width: 1100px) { /* a PC: wider tabs, larger text */
+  #padcol:not(.shut) { position: relative; inset: auto; width: 240px; margin-right: 6px; box-shadow: none; }
+  #padcol.shut { width: 42px; }
+  #padcol .chip { min-height: 48px; padding: 8px 12px; gap: 10px; font-size: 15px; }
+  #padcol .chip .cicon { font-size: 18px; }
+  #padcol .chip .csub { font-size: 15px; }
+  /* open or shut, every tab keeps its height and place, as on a phone: shutting only narrows the column (user) */
+  #padcol.shut .chip { min-height: 48px; padding-top: 8px; padding-bottom: 8px; }
+  #padcol.shut .newchip, #padhead { font-size: 15px; }
+  #tabtrash, .shelftrash > summary { font-size: 15px; }
+}
+/* Phones: opened, the shelf slides over the chat's right side instead of squeezing it */
+@media (max-width: 700px) {
+  /* 66%: at 48% (~167px on a phone) titles showed five letters; 85% covered too much of the chat (user: "shelf to wide") */
+  #shelf:not(.shut) { position: absolute; top: 0; right: 0; bottom: 0; z-index: 5; width: min(66%, 260px); margin: 0;
+    box-shadow: -8px 0 24px #000a; }
+  #shelfrow { flex-wrap: wrap; row-gap: 4px; }
+}
+/* Tap a sent message:it grows a "Back to this" button */
+.cmsg.user:not(.cqueued) { cursor: pointer; }
+.cmsg.user .uacts { display: none; }
+/* A bubble's buttons (Back to this; a queued message's Send now / Edit) sit under it, below its time, not in it (user) */
+.cmsg.user { position: relative; }
+.cmsg.user.open { margin-bottom: 44px; }
+.cmsg.user.open .uacts, .cqueued .qacts { display: flex; gap: 6px; position: absolute; right: 0; top: calc(100% + 20px); white-space: nowrap; }
+.cqueued { margin-bottom: 36px; }
+.cqueued .qacts { top: calc(100% + 6px); }
+.uacts button, .cqueued .qacts button { padding: 4px 12px; border-radius: 6px; color: var(--screen-ink);
+  background: color-mix(in srgb, var(--screen-ink) 12%, transparent); font: 600 calc(var(--chatfont, 14px) * .8) var(--ui); }
+.cqueued .qacts .qnote { color: var(--screen-dim); }
+/* waiting to go: the bubble faded, not its buttons */
+.cqueued { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+.cqueued.csending { background: color-mix(in srgb, var(--accent) 80%, transparent); }
+.cqueued .qnote { font: 600 calc(var(--chatfont, 14px) * .8) var(--ui); opacity: .8; }
+
+/* The message box inside a chat (app.js attachChat moves it there) */
+#term.chat .composer { padding: 8px; border-top: 1px solid #ffffff14; }
+#term.chat #msg { background: #ffffff12; color: var(--screen-ink); box-shadow: none; font: var(--chatfont, 15px)/1.4 var(--ui); }
+#term.chat .composer button { font-size: calc(var(--chatfont, 15px) + 3px); }
+#term.chat #msg::placeholder { color: #ffffff66; }
+.chatstatus button { padding: 4px 10px; border-radius: 6px; background: #ffffff1a; color: var(--screen-ink); font: 600 1em var(--ui); }
+.chatspin { animation: chatpulse 1.2s ease-in-out infinite; }
+@keyframes chatpulse { 50% { opacity: .4; } }
+.keys { display: flex; gap: 10px; padding: 16px 16px 10px; overflow-x: auto; flex: none; scrollbar-width: none; }
+.keybar { position: relative; flex: none; }
+#term.chat .keys { padding: 10px 8px 4px; border-top: 1px solid #ffffff14; }
+@media (max-width: 1099px) { /* phones: the keys above the message box slimmer (user: "less padding") */
+  #term.chat .keys { gap: 7px; padding: 6px 8px 2px; }
+}
+#term.chat .keybar + .composer { border-top: none; }
+/* phone: Working… and Stop at the right of the key row (placeHarness); Stop takes the key style, like Harness */
+.keys .chatstatus { flex: none; align-self: stretch; align-items: stretch; margin-left: auto; gap: 10px; padding: 0 0 0 10px; border-top: none;
+  position: sticky; right: 0; background: var(--screen); } /* stays in view when other keys scroll the row */
+.keys .chatstatus .chatspin { align-self: center; }
+.keys .chatstatus button { padding: 8px 9px; min-width: 42px; border-radius: 9px; font: 600 12px var(--ui); background: #ffffff14; color: var(--screen-ink); }
+/* Harness pop-up: a flat menu like the PC message box's Model / Effort menus (.msgmenu) */
+.hpop { position: absolute; bottom: calc(100% + 4px); left: 12px; z-index: 5; display: flex; flex-direction: column; gap: 2px;
+  min-width: 170px; max-height: 60vh; overflow-y: auto; padding: 6px; border-radius: 12px;
+  background: var(--body); box-shadow: 0 0 0 1px var(--seam), 0 12px 30px #0005; }
+.hpop[hidden] { display: none; }
+/* narrow screens: the message box's tool row and its menus live in the key row (app.js placeHarness) */
+.keys .msgbar, .keys .msgbar span { display: contents; }
+.keys .msgbar button[hidden], .keys #upbtn[hidden] { display: none; }
+.keys #upbtn { display: grid; place-items: center; }
+/* a phone's chat: Working… and Stop at the top bar's right end (app.js placeHarness), out of the crowded key row (user) */
+/* a little easier to see than the old dim text (user), without shouting: a small accent dot, Stop outlined in red */
+.brand .chatstatus { flex: none; margin-left: auto; gap: 8px; padding: 0; border-top: none; font: 600 12px var(--ui); color: var(--ink2, var(--ink)); }
+.brand .chatspin { display: flex; align-items: center; gap: 5px; }
+.brand .chatspin::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.brand .chatstatus button, :root[data-theme=light] .brand .chatstatus button { padding: 4px 11px; border-radius: 8px; font: 600 12px var(--ui);
+  background: transparent; color: var(--red); box-shadow: inset 0 0 0 1.5px var(--red); }
+.brand:has(.chatstatus:not([hidden])) #hostbtn { flex: none; } /* else it shrank and "deck" ran into TERMINAL */
+.brand .chatspin { font-size: 0; } /* just the pulsing dot: "Working…" pushed Stop off a phone's screen beside two tabs (user) */
+/* the key row's right end, pinned as the row scrolls: then + */
+.keys .kright { flex: none; display: flex; align-items: stretch; gap: 10px; margin-left: auto; position: sticky; right: 0; z-index: 1;
+  padding-left: 10px; background: var(--screen);
+  /* cover the row's 8px right padding (a scrolled key peeked out past +) and fade the keys passing under its left edge */
+  box-shadow: 8px 0 0 var(--screen), -6px 0 6px -2px var(--screen); }
+.keys .kright:empty { display: none; }
+.keys .kright .chatstatus { position: static; margin: 0; padding: 0; }
+.keybar .msgmenu { position: absolute; bottom: calc(100% + 4px); z-index: 6; display: flex; flex-direction: column; gap: 2px;
+  min-width: 170px; max-width: 90%; max-height: 50vh; overflow-y: auto; padding: 6px; border-radius: 12px;
+  background: var(--body); box-shadow: 0 0 0 1px var(--seam), 0 12px 30px #0005; }
+.keybar .msgmenu[hidden] { display: none; }
+.keybar .msgmenu :is(.mmtitle, .mmnote) { padding: 6px 10px; font: 500 13px var(--ui); color: var(--ink2); }
+.keybar .msgmenu button { padding: .6em .75em; border-radius: 8px; text-align: left; font: 500 var(--chatfont, 15px) var(--ui); color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.keybar .msgmenu button:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+@media (max-width: 1099px) { /* in the key row now: not twice in Harness */
+  #harness :is([data-cmd="/resume"], [data-cmd="/model"], [data-cmd="/effort"]) { display: none !important; } }
+.hpop.tabmenu { position: fixed; bottom: auto; z-index: 50; min-width: 140px; }
+.hpop button { padding: .6em .75em; border-radius: 8px; text-align: left; font: 500 var(--chatfont, 15px) var(--ui); color: var(--ink);
+  white-space: nowrap; }
+.hpop button:hover, .hpop button:active { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.keys button[aria-expanded=true] { transform: translateY(2px); box-shadow: 0 0 0 2px var(--well), 0 1px 0 2px var(--well); }
+.keys button { flex: none; min-width: 42px; padding: 8px 9px; border-radius: 9px; font: 600 12px var(--mono);
+  background: var(--k-shell); color: var(--k-shell-ink);
+  box-shadow: 0 0 0 2px var(--well), inset 0 -2px 0 #0002, inset 0 1px 0 #fff6, 0 3px 0 2px var(--well); }
+.keys button:active { transform: translateY(2px); box-shadow: 0 0 0 2px var(--well), 0 1px 0 2px var(--well); }
+@media (max-width: 1099px) { #term.chat .keys button { padding: 5px 8px; min-width: 36px; } } /* phones: slimmer (user) */
+.composer { display: flex; gap: 10px; padding: 4px 16px 8px; flex: none; }
+#msg { resize: none; font: 15px/1.4 var(--ui); }
+.composer button { width: 48px; border-radius: 12px; font-size: 18px; background: var(--accent); color: var(--on-accent);
+  box-shadow: 0 0 0 2px var(--well), inset 0 -3px 0 #0003, inset 0 1px 0 #fff5, 0 3px 0 2px var(--well); }
+.composer button:active { transform: translateY(2px); }
+.composer #mic { display: grid; place-items: center; background: var(--k-shell); color: var(--k-shell-ink); }
+.composer #mic[hidden] { display: none; }
+.composer #upbtn { display: grid; place-items: center; background: #ffffff14; color: var(--screen-ink); box-shadow: none; }
+.composer #upbtn[hidden] { display: none; }
+.composer #mic.on { background: var(--accent); color: var(--on-accent); animation: mic 1.2s ease-in-out infinite; }
+@keyframes mic { 50% { opacity: .65; } }
+/* A PC has a keyboard: no key rows. The message box is one rounded box with a tool row inside it, as in Claude's web app
+   (app.js placeHarness): Harness and Resume on the left; Model, Effort, the mic and Send on the right. */
+.msgside { display: contents; }
+@media (max-width: 1099px) {
+  #msg { min-height: calc(1.4em + 20px); } /* phones: one line to start, growing as you type (user: "too tall") */
+  .composer #mic { display: none !important; } /* no mic on phones (user) */
+  #say .msgside #upbtn { width: 32px; align-self: center; height: 32px; border-radius: 50%; } /* + left of the box, small (user: "too large") */
+}
+.msgbar, #msgshut { display: none; }
+@media (min-width: 1100px) {
+  #screenkeys, #view-term:has(#say:not([hidden])) .keybar .keys { display: none; } /* message box off: the keys stay */
+  #view-term:has(#say:not([hidden])) #harness :is([data-cmd="/resume"], [data-cmd="/model"], [data-cmd="/effort"]) { display: none !important; }
+  #say .msgside { display: none; }
+  /* one gutter all round, the chat text's own (.chatlog): the message box, and Stop lined up with the messages */
+  #say, #term.chat #say { padding: 0 var(--gutter) 8px; } /* the gutter at the sides; a little under, nothing above (user) */
+  .chatstatus { padding: 0 var(--gutter) 8px; border-top: none; }
+  /* Working… and Stop side by side, centred just above the message box; Stop a faint outline till hovered (user) */
+  .chatlog + .chatstatus { justify-content: center; gap: 12px; padding: 4px var(--gutter) 0;
+    font: 500 calc(var(--chatfont, 14px) * .8) var(--ui); }
+  .chatlog + .chatstatus button { padding: 2px 10px; border-radius: 8px; border: 1px solid #ffffff1f; background: transparent;
+    color: var(--screen-dim); font: 500 1em var(--ui); }
+  .chatlog + .chatstatus button:hover { border-color: #ffffff40; color: var(--screen-ink); }
+  /* no bar of its own: it floats over the chat's bottom edge, and the chat keeps room under its last message (user) */
+  .chatlog + .chatstatus { height: 0; padding: 0; overflow: visible; position: relative; z-index: 2; align-items: flex-end; }
+  .chatlog + .chatstatus > * { transform: translateY(-6px); } /* just above the message box's top edge (user) */
+  .chatlog + .chatstatus .chatspin { padding: 3px 8px; border-radius: 8px; }
+  .chatlog + .chatstatus :is(.chatspin, button) { background: color-mix(in srgb, var(--screen) 85%, transparent); }
+  .chatlog:has(+ .chatstatus:not([hidden])) { padding-bottom: 18px; }
+  #say .msgfield { position: relative; }
+  /* collapse toggle just above the box's top-right corner; collapsed: one line, no tool row (user) */
+  #say #msgshut { position: absolute; right: 10px; bottom: 100%; z-index: 3; display: grid; place-items: center; width: 26px; height: 16px; padding: 0;
+    background: none; box-shadow: none; transform: none; filter: none; font-size: 14px;
+    border-radius: 6px 6px 0 0; color: var(--screen-dim); opacity: .6; }
+  #say #msgshut:hover { opacity: 1; background: #ffffff14; }
+  #say.shut #msgshut svg { transform: rotate(180deg); }
+  /* collapsed: one row, the text and a small Send at the right edge, rounded on that side (user) */
+  #say.shut .msgfield { flex-direction: row; align-items: stretch; gap: 0; padding: 4px 4px 4px 12px; }
+  #say.shut #msg { min-height: calc(1.4em + 8px); align-self: center; }
+  #say.shut .msgbar { display: contents; }
+  #say.shut .msgbar > :not(.mbr), #say.shut .mbr > :not([type=submit]) { display: none; }
+  #say.shut .msgbar .mbr { display: flex; align-self: stretch; margin: 0; }
+  #say.shut .msgbar button[type=submit] { height: auto; align-self: stretch; width: 40px; border-radius: 16px; } /* inset, a pill: rounded both sides (user) */
+  /* the ➤ glyph's ink sits off its box: draw the arrow as a centred mask instead (user) */
+  #term #say.shut .msgbar button[type=submit] { position: relative; font-size: 0 !important; }
+  #say.shut .msgbar button[type=submit]::before { content: ""; position: absolute; inset: 0; margin: auto; width: 14px; height: 14px; background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2 1.5 13 7 2 12.5 4.2 7z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2 1.5 13 7 2 12.5 4.2 7z'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .msgmenu { position: absolute; bottom: calc(100% + 8px); z-index: 6; display: flex; flex-direction: column; gap: 2px;
+    min-width: 170px; max-width: min(460px, 90%); max-height: 50vh; overflow-y: auto; padding: 6px; border-radius: 12px;
+    background: var(--body); box-shadow: 0 0 0 1px var(--seam), 0 12px 30px #0005; }
+  .msgmenu[hidden] { display: none; }
+  .msgmenu .mmtitle { padding: 4px 10px 6px; font: 600 calc(var(--chatfont, 15px) - 3px) var(--ui); color: var(--ink3); }
+  .msgmenu .mmnote { padding: 8px 10px; font: 500 calc(var(--chatfont, 15px) - 1px) var(--ui); color: var(--ink2); }
+  #say .msgmenu button { width: auto; height: auto; box-shadow: none; padding: .55em .7em; border-radius: 8px; text-align: left; font: 500 var(--chatfont, 15px) var(--ui); color: var(--ink); background: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #say .msgmenu button:hover { background: #0000000f; }
+  #term.chat #say .msgmenu button { font-size: var(--chatfont, 15px); }
+  #say .msgfield { gap: 4px; padding: 4px 12px 6px; border-radius: 16px; background: var(--body-lo); box-shadow: inset 0 2px 4px #0003, 0 1px 0 #ffffff50; }
+  #say .msgfield:focus-within { box-shadow: inset 0 2px 4px #0003, 0 0 0 2px var(--accent); }
+  #say #msg, #say #msg:focus { padding: 10px 8px 8px; background: transparent; box-shadow: none; } /* 20px from the frame's edge with the field's 12 (user: more at the sides) */ /* the draft on its own roomy line, as in Claude's box (user) */
+  #say .msgbar { display: flex; align-items: center; gap: 8px; }
+  #say .msgbar span { display: flex; align-items: center; gap: 6px; }
+  #say .mbr { margin-left: auto; }
+  #say .msgbar button, #term.chat .composer .msgbar button { width: auto; height: 26px; padding: 0 9px; border-radius: 7px;
+    font: 600 13px/1 var(--ui); letter-spacing: 0; /* a fixed small size (user: "buttons too big"; #term.chat .composer button set the chat font + 3px and won) */
+    background: transparent; color: var(--ink2); box-shadow: inset 0 0 0 1px var(--seam); }
+  #say .msgbar button:hover, #say .msgbar button[aria-expanded=true] { background: #0000000f; color: var(--ink); }
+  #say .msgbar button:active { transform: translateY(1px); }
+  #say .msgbar button[hidden] { display: none; }
+  #say .msgbar #mic { width: 26px; padding: 0; box-shadow: none; }
+  #say .msgbar #upbtn { width: 26px; padding: 0; background: transparent; color: var(--ink2); box-shadow: inset 0 0 0 1px var(--seam); }
+  #say .msgbar #mic.on { background: var(--accent); color: var(--on-accent); }
+  #say .msgbar button[type=submit] { width: 30px; padding: 0; font-size: 14px;
+    background: var(--accent); color: var(--on-accent); box-shadow: none; }
+  /* in a chat: the dark screen's colours */
+  #term.chat #say .msgfield { background: #ffffff12; box-shadow: none; }
+  #term.chat #say #msg { background: transparent; }
+  #term.chat #say .msgfield:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+  #term.chat #say .msgbar button:not([type=submit]) { color: #ffffffb0; box-shadow: inset 0 0 0 1px #ffffff26; }
+  #term.chat #say .msgbar button:not([type=submit]):hover, #term.chat #say .msgbar button[aria-expanded=true] { background: #ffffff14; color: var(--screen-ink); }
+  #term.chat #say .msgbar #mic { box-shadow: none; }
+}
+
+/* ---- mode selector ---- */
+.tabbar { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; margin: 6px 16px max(14px, env(safe-area-inset-bottom));
+  padding: 4px; border-radius: 14px; background: var(--well); box-shadow: inset 0 2px 4px #0004, 0 1px 0 #ffffff50; }
+.tabbar button { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 0;
+  border-radius: 10px; font: 600 10px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink3); }
+.tabbar button.on { color: var(--ink); background: linear-gradient(180deg, var(--body-hi), var(--body));
+  box-shadow: inset 0 1px 0 #ffffff70, 0 2px 3px #0004; }
+.tabbar button[hidden] { display: none; }
+/* The views are a row of flat text tabs beside the host name (moved there by app.js); the current one carries an
+   accent underline. A phone spreads them across the header; a PC keeps them together after the name. */
+.brand .tabbar { display: flex; gap: 10px; margin: 0 0 0 16px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
+.brand .tabbar button { flex: none; padding: 6px 0; border-radius: 0; font: 700 12px var(--mono); letter-spacing: .1em;
+  color: var(--ink3); background: none; box-shadow: none; }
+.brand .tabbar button::before { content: ""; position: absolute; inset: -8px -6px; } /* bigger tap target */
+.brand .tabbar button:active { color: var(--accent); }
+.brand .tabbar button.on { color: var(--ink); background: none; box-shadow: none; }
+.brand .tabbar .tl { padding-bottom: 3px; border-bottom: 2px solid transparent; }
+.brand .tabbar button.on .tl { border-bottom-color: var(--accent); }
+@media (max-width: 1099px) {
+  #app { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  #pulse { display: none; }
+  .hostbtn { gap: 4px; }
+  .brand .tabbar { flex: 1; gap: 18px; } /* tabs together after the name, as on a PC (user) */
+}
+@media (min-width: 1100px) { .brand .tabbar { gap: 22px; margin-left: 24px; } }
+
+/* ---- SCREEN ---- */
+.screenbar { display: flex; align-items: center; gap: 12px; padding: 4px 16px 12px; flex: none; }
+.screenctl { display: flex; align-items: center; gap: 6px; font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink2); }
+#screenstatus { margin-left: auto; min-width: 0; padding: 6px 10px; font-size: 12px; }
+#screen { flex: 1; min-height: 0; margin: 0 14px; border-radius: 14px; overflow: hidden; background: var(--screen); touch-action: none;
+  box-shadow: inset 0 3px 8px #000, 0 0 0 4px var(--well), 0 1px 0 5px #ffffff30; }
+#screenvnc { width: 100%; height: 100%; }  /* grows with pinch zoom; #screen scrolls over it */
+#screentext { flex: 1; min-width: 0; padding: 10px 12px; border: none; border-radius: 10px; outline: none;
+  background: var(--body-lo); color: var(--ink); box-shadow: inset 0 2px 4px #0003; font: 15px var(--ui); }
+#screentext:focus { box-shadow: inset 0 2px 4px #0003, 0 0 0 2px var(--accent); }
+
+
+/* ---- edit panel ---- */
+dialog { width: min(400px, calc(100vw - 24px)); padding: 20px; border: none; border-radius: 22px; color: var(--ink);
+  background: var(--noise), var(--brush), linear-gradient(180deg, var(--body-hi), var(--body));
+  box-shadow: 0 0 0 1px var(--seam), inset 0 1px 0 #ffffff60, 0 30px 60px #0006; }
+dialog::backdrop { background: #1c1c1a66; backdrop-filter: blur(3px); }
+dialog h2 { margin: 0 0 16px; font-weight: 700; font-size: 18px; }
+dialog label { display: block; margin-bottom: 14px; font: 600 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink3); }
+dialog label.yolo { display: flex; align-items: center; gap: 8px; color: var(--ink2); }
+dialog label.yolo[hidden] { display: none; }
+dialog label.yolo input { width: auto; margin: 0; accent-color: var(--accent); }
+dialog input:not([type=radio]):not([type=checkbox]), dialog textarea { display: block; width: 100%; margin-top: 6px; padding: 10px 12px; border: none; border-radius: 10px;
+  outline: none; background: var(--body-lo); box-shadow: inset 0 2px 4px #0003, 0 1px 0 #ffffff50;
+  font: 500 15px var(--ui); letter-spacing: 0; text-transform: none; color: var(--ink); }
+dialog textarea { font: 12px/1.5 var(--mono); }
+/* The key editor holds whole agent prompts: wide on a PC, a tall resizable box, scrolls when taller than the screen */
+#edit { width: min(760px, calc(100vw - 24px)); overflow-y: auto; }
+#edit textarea[name=text] { min-height: 40vh; resize: vertical; font-size: 13px; }
+dialog input:focus, dialog textarea:focus { box-shadow: inset 0 2px 4px #0003, 0 0 0 2px var(--accent); }
+.types { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; } /* 7 types: 4 + 3, not 3 + 3 + 1 */
+@media (max-width: 520px) { .types { grid-template-columns: repeat(2, 1fr); } }
+.types label { margin: 0; }
+.types input { position: absolute; opacity: 0; }
+.types span { display: block; padding: 10px 2px; border-radius: 10px; text-align: center; font: 600 12px var(--mono); letter-spacing: .04em;
+  text-transform: none; color: var(--k-shell-ink); background: var(--k-shell);
+  box-shadow: 0 0 0 2px var(--well), inset 0 -2px 0 #0002, inset 0 1px 0 #fff6, 0 3px 0 2px var(--well); }
+.types input:checked + span { transform: translateY(2px); background: var(--accent); color: var(--on-accent);
+  box-shadow: 0 0 0 2px var(--well), inset 0 1px 0 #fff5, 0 1px 0 2px var(--well); }
+.buildwith { display: flex; gap: 10px; align-items: center; width: 100%; margin: -6px 0 16px; padding: 8px 10px; border-radius: 10px; text-align: left;
+  background: none; color: var(--ink2); box-shadow: inset 0 0 0 1px var(--seam); } /* a quiet second way in, under the title (user) */
+.buildwith:hover { color: var(--ink); }
+.buildwith[hidden] { display: none; }
+.buildwith:active { transform: translateY(2px); }
+.buildwith .kicon { font-size: 18px; }
+.buildwith b { display: block; font-weight: 700; }
+.buildwith small { display: block; font-size: 12px; opacity: .85; line-height: 1.3; }
+.askhead { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.askhead h2 { margin: 0; }
+.askicon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font: 700 18px var(--mono);
+  background: var(--k-claude); color: var(--k-claude-ink); box-shadow: 0 0 0 3px var(--well); }
+#askprompt { display: block; width: 100%; padding: 12px; border: none; border-radius: 12px; outline: none; resize: vertical;
+  background: var(--body-lo); color: var(--ink); font: 500 15px/1.45 var(--ui); box-shadow: inset 0 2px 4px #0003, 0 1px 0 #ffffff50; }
+#askprompt:focus { box-shadow: inset 0 2px 4px #0003, 0 0 0 2px var(--accent); }
+#askfolders { margin-top: 16px; }
+#askhostwrap { margin-bottom: 8px; }
+#askhostwrap[hidden] { display: none; }
+#askhostwrap > label { margin-bottom: 8px; }
+#askfolders[hidden] { display: none; }
+#askfolders > label { margin-bottom: 8px; }
+.folderchips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.fchip { padding: 6px 10px; border-radius: 8px; font: 600 12px var(--mono); background: var(--k-shell); color: var(--k-shell-ink);
+  box-shadow: 0 0 0 2px var(--well), inset 0 -2px 0 #0002, 0 2px 0 2px var(--well); }
+.fchip.on { background: var(--ink); color: var(--body-hi); transform: translateY(1px); }
+#askcwd { display: block; width: 100%; padding: 9px 12px; border: none; border-radius: 10px; outline: none; background: var(--body-lo);
+  color: var(--ink); font: 12px var(--mono); box-shadow: inset 0 2px 4px #0003; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.row span { flex: 1; }
+.err { color: var(--red); font: 600 12px var(--mono); min-height: 1em; margin: 0 0 8px; }
+
+.toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 20; width: min(400px, calc(100vw - 32px));
+  padding: 10px 14px; border-radius: 6px; background: var(--accent); color: var(--on-accent);
+  font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; box-shadow: 0 8px 20px #0004; }
+
+@keyframes blink { 50% { opacity: .25; } }
+@keyframes nudge { 0%, 88%, 100% { transform: none; } 92% { transform: translateY(-2px); } 96% { transform: translateY(1px); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+#copybody { font: 12px/1.45 var(--mono); white-space: pre-wrap; }
+
+/* Flat buttons on every screen, as in the PC message box: a fill or a thin outline, no raised key shadow; a press
+   darkens or shrinks a little instead of sinking. */
+.ghost, .agentpick span, .types span, .fchip, .hostrow, .gkey { box-shadow: inset 0 0 0 1px var(--seam); transform: none; }
+.ghost:active, .agentpick input:checked + span, .types input:checked + span, .fchip.on { transform: none; box-shadow: none; }
+.primary, .buildwith, .composer button, .composer button:active, .buildwith:active { box-shadow: none; transform: none; }
+.primary:active, .composer button:active, .buildwith:active { filter: brightness(.9); }
+.gkey.lit { box-shadow: 0 0 0 2px var(--power, var(--orange)); }
+/* the key row and the mic sit on the dark screen: light-on-dark like the shelf's buttons */
+.keys button, .composer #mic { background: #ffffff14; color: var(--screen-ink); box-shadow: none; transform: none;
+  font: 600 12px var(--ui); }
+.keys button:active, .keys button[aria-expanded=true] { background: #ffffff2a; box-shadow: none; transform: none; }
+/* the Pad's keys keep their colours, flat */
+.key, #padslot .key, .key.pressed, .key:active { box-shadow: none; }
+.key.pressed, .key:active { transform: scale(.95); }
+.key.add { box-shadow: inset 0 0 0 1.5px var(--seam); }
+.cell.lifted .key, #padslot .cell.lifted .key { box-shadow: 0 0 0 2px var(--accent), 0 14px 24px #0006; }
+
+/* Review (PC): the chat on the left half of the screen, a document from the shelf on the right (app.js "Review") */
+#docpane, #docgrip { display: none; }
+.tabbar button[data-view=review], .tabbar button[data-view=web], #webpane { display: none; }
+@media (min-width: 1100px) {
+  .tabbar button[data-view=review], .tabbar button[data-view=web] { display: flex; } /* flex like the other tabs, or their text sits lower (user) */
+  /* Web (app.js "Web"): the reader's place, a page in it */
+  #app.review #webpane:not([hidden]) { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; order: 2; flex-grow: var(--docfr, 1);
+    border-radius: 14px; background: var(--screen); color: var(--screen-ink); overflow: hidden; }
+  #webaddr { flex: 1 1 auto; min-width: 0; padding: 6px 10px; border: none; border-radius: 8px; font: 500 12px var(--mono);
+    background: var(--body-lo); color: var(--ink); }
+  #webout { text-decoration: none; }
+  #webbody { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #webbody iframe { flex: 1; width: 100%; border: none; background: #fff; }
+  #webbody .hint { margin: auto; padding: 0 24px; text-align: center; }
+  #app.review #docpane:not([hidden]) { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; order: 2; /* right of the chat, past the divider (user) */
+    border-radius: 14px; background: var(--screen); color: var(--screen-ink); overflow: hidden; }
+  #app.review #term { flex: var(--chatfr, 1) 1 0; }
+  #app.review #docpane:not([hidden]) { flex-grow: var(--docfr, 1); }
+  #app.review #shelf { order: 3; }
+  #app.review #docgrip { display: block; order: 1; flex: none; width: 8px; cursor: col-resize; touch-action: none; }
+  #app.review #docgrip:hover, #docgrip.drag { background: linear-gradient(90deg, transparent 3px, var(--accent) 3px 5px, transparent 5px); }
+  #app.review .msgbar { flex-wrap: wrap; row-gap: 6px; } /* half width: the message box's buttons wrap, not spill over the document */
+  #app.review #term { min-width: 0; overflow: hidden; }
+}
+/* the reader's tabs, as Chrome draws them (user): a darker strip; the open tab takes the page's colour and flows into it
+   with curved feet; the others flat, a thin line between them; × in a circle on hover */
+.dochead { flex: none; display: flex; gap: 8px; align-items: flex-end; padding: 6px 8px 0; min-height: 40px;
+  background: color-mix(in srgb, #000 50%, var(--screen)); }
+.dochead > :not(#doctabs) { align-self: center; margin-bottom: 4px; }
+#doctabs { flex: 1; min-width: 0; display: flex; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 0 10px; }
+.doctab { position: relative; flex: 0 1 200px; min-width: 70px; height: 34px; display: flex; align-items: center; gap: 2px;
+  padding: 0 6px 0 12px; border-radius: 9px 9px 0 0; color: var(--screen-dim); }
+.doctab:hover:not(.on) { background: color-mix(in srgb, var(--screen-ink) 7%, transparent); }
+.doctab.on { background: var(--screen); color: var(--screen-ink); z-index: 1; }
+/* the open tab's feet: the page's colour curving out into the strip on both sides */
+.doctab.on::before, .doctab.on::after { content: ""; position: absolute; bottom: 0; width: 10px; height: 10px; pointer-events: none; }
+.doctab.on::before { left: -10px; background: radial-gradient(circle at 0 0, transparent 9.5px, var(--screen) 10px); }
+.doctab.on::after { right: -10px; background: radial-gradient(circle at 100% 0, transparent 9.5px, var(--screen) 10px); }
+/* a thin line between two tabs that aren't open (or hovered) */
+.doctab:not(.on):not(:hover) + .doctab:not(.on):not(:hover)::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px;
+  width: 1px; background: color-mix(in srgb, var(--screen-ink) 18%, transparent); }
+.doctabname { flex: 1; min-width: 0; padding: 0; border: none; background: none; color: inherit; font: 500 12px var(--ui);
+  text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 14px), transparent); }
+.doctabx { flex: none; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: none; border-radius: 50%;
+  background: none; color: inherit; font-size: 14px; line-height: 1; cursor: pointer; opacity: .75; }
+.doctabx:hover { background: color-mix(in srgb, var(--screen-ink) 16%, transparent); opacity: 1; }
+#docbody { background: var(--screen); }
+#docpane.dropchat { box-shadow: inset 0 0 0 2px var(--accent); }
+#docbody { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
+#docbody { user-select: text; -webkit-user-select: text; }
+/* a PDF page: the canvas, and pdf.js's invisible text layer over it (selectable; sized by --scale-factor) */
+#docbody .docpage { position: relative; margin: 0 auto 10px; background: #fff; border-radius: 4px; overflow: hidden; }
+#docbody canvas { display: block; width: 100%; height: 100%; }
+#docbody .textLayer { position: absolute; inset: 0; overflow: clip; line-height: 1; transform-origin: 0 0; z-index: 1;
+  text-size-adjust: none; -webkit-text-size-adjust: none; }
+#docbody .textLayer :is(span, br) { position: absolute; color: transparent; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+#docbody .textLayer ::selection { background: #3d8bff55; }
+#docbody .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: -1; cursor: default; user-select: none; }
+#docsend { flex: none; display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
+.doczoom { flex: none; display: flex; align-items: center; gap: 4px; }
+.doczoom button { min-width: 28px; padding: 2px 6px; font-size: 15px; }
+#doczoomval { min-width: 38px; text-align: center; font: 500 11px var(--mono); color: var(--screen-dim); }
+/* a phone's Open on a shelf item: its whole text over the screen */
+.fullread { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; padding: max(10px, env(safe-area-inset-top)) 14px 14px;
+  background: var(--screen); color: var(--screen-ink); }
+.fullhead { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 8px;
+  font: 600 14px var(--ui); border-bottom: 1px solid #ffffff14; }
+.fullhead span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fullread :is(pre, .fullprose) { flex: 1; min-height: 0; overflow-y: auto; padding-top: 10px; -webkit-user-select: text; user-select: text; }
+.doctext { margin: 0; white-space: pre-wrap; word-break: break-word; font: .93em/1.5 var(--mono); }
+#docbody > .cprose { font-size: 1em; } /* text, Markdown and Word follow the reader's zoom (#docbody's font size) */
+#shelffile { margin-left: auto; padding: 4px 8px; min-height: 0; white-space: nowrap; font-size: 11px; }
+#shelfshare { white-space: nowrap; }
+
+/* A script's output (app.js showRun) */
+#runout, #offview { width: min(760px, calc(100vw - 24px)); }
+.runhead { display: flex; align-items: baseline; gap: 12px; }
+.runhead h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#runstate, #offstate { font: 600 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); }
+#runtext, #offtext { height: min(60vh, 520px); margin: 8px 0 12px; padding: 10px 12px; overflow: auto; border-radius: 10px;
+  background: var(--screen); color: var(--screen-ink); font: 12px/1.45 var(--mono); white-space: pre-wrap; word-break: break-word; }
+/* the reader's editor (a text document) and a Word file's page */
+#docbody:has(.docedit) { display: flex; flex-direction: column; gap: 8px; }
+.doceditbar { flex: none; display: flex; align-items: center; gap: 8px; }
+.doceditbar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--screen-dim); font: 500 12px var(--ui); }
+.docedit { flex: 1; min-height: 200px; width: 100%; resize: none; padding: 10px 12px; border: none; border-radius: 10px; outline: none;
+  background: color-mix(in srgb, var(--screen-ink) 6%, transparent); color: var(--screen-ink); font: 1em/1.5 var(--mono); }
+/* Syntax colours (app.js highlight): LaTeX and BibTeX, read and edited. The editor is the coloured text itself
+   (contenteditable), so there is no second layer to line up. */
+.sxlive { margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; tab-size: 4;
+  caret-color: var(--screen-ink); }
+:root { --sx-cm: #7d8b6f; --sx-cmd: #6fb0ff; --sx-sc: #ff9e64; --sx-env: #c792ea; --sx-ref: #4fd1c5; --sx-mt: #e6c07b;
+  --sx-br: #8f8c84; --sx-op: #f07178; --sx-key: #82aaff; --sx-str: #c3e88d; --sx-num: #f78c6c; }
+:root[data-theme=light] { --sx-cm: #6a7a5a; --sx-cmd: #0b5fb8; --sx-sc: #b4530a; --sx-env: #7b3fb0; --sx-ref: #0b7c72;
+  --sx-mt: #8a6500; --sx-br: #7f7c74; --sx-op: #c0392b; --sx-key: #2449a8; --sx-str: #3d7a12; --sx-num: #b4500f; }
+.sx-cm { color: var(--sx-cm); font-style: italic; } .sx-cmd { color: var(--sx-cmd); } .sx-sc { color: var(--sx-sc); font-weight: 600; }
+.sx-env { color: var(--sx-env); } .sx-ref { color: var(--sx-ref); } .sx-mt { color: var(--sx-mt); } .sx-br { color: var(--sx-br); }
+.sx-op { color: var(--sx-op); } .sx-key { color: var(--sx-key); } .sx-str { color: var(--sx-str); } .sx-num { color: var(--sx-num); }
+.docword { max-width: 46em; margin: 0 auto; padding: 24px 28px; border-radius: 4px; background: #fff; color: #1a1a1a; }
+.docword :is(h1, h2, h3) { color: #111; }
+/* Review's divider while dragged: a line where it will land */
+.splitline { position: fixed; z-index: 50; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
+/* Folders in the tab list (app.js renderChips): a quiet header (chevron, name, count), its tabs indented beside a guide
+   line; shut, the header lights up when a tab inside is the open one or needs you */
+#chips .tabfolder { min-height: 30px; padding-top: 2px; padding-bottom: 2px; background: none; color: var(--screen-dim); gap: 6px; }
+#chips .tabfolder:hover { background: color-mix(in srgb, var(--chip-ink, var(--ink)) 7%, transparent); color: var(--screen-ink); }
+.tabfolder .fchev { display: grid; place-items: center; width: 18px; font: 600 15px/1 var(--ui); transition: transform .15s; }
+.tabfolder.open .fchev { transform: rotate(90deg); }
+#padcol:not(.shut) #chips .tabfolder .ctext { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px;
+  min-width: 0; text-align: left; }
+.tabfolder .fname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 600 11px var(--mono);
+  letter-spacing: .08em; text-transform: uppercase; }
+.tabfolder .fcount { flex: none; min-width: 18px; padding: 1px 6px; border-radius: 9px; text-align: center; font: 600 10px var(--mono);
+  background: color-mix(in srgb, var(--screen-ink) 10%, transparent); }
+.tabfolder.hason:not(.open) { color: var(--screen-ink); box-shadow: inset 2px 0 0 var(--accent); }
+.tabfolder.c-needs_you:not(.open) { color: var(--orange); }
+#padcol:not(.shut) #chips .chip.infolder { margin-left: 14px; position: relative; }
+#padcol:not(.shut) #chips .chip.infolder::before { content: ""; position: absolute; left: -9px; top: -3px; bottom: -3px; width: 2px;
+  border-radius: 1px; background: color-mix(in srgb, var(--accent) 45%, transparent); }
+#chips .dropinto { box-shadow: inset 0 0 0 2px var(--accent) !important; }
+#padcol.shut #chips .tabfolder { min-height: 30px; padding-top: 2px; padding-bottom: 2px; } /* as open: nothing moves */
+#padcol.shut #chips .tabfolder .fchev { width: auto; }
+/* Review: the left column keeps the session tabs, not the scripts (user) */
+#app.review #padslot, #app.review #padbar { display: none; }
+#app.review #padcol #chips { flex: 1 1 auto; border-bottom: none; }
+/* The rich editor (app.js richEditor), Google Docs' layout in the dark (user): the title and save state, a pill toolbar,
+   then a page centred in the reader */
+#docbody:has(.richpage) { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.richbar { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px 6px; }
+.richtitle { flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid transparent; border-radius: 6px; background: none;
+  color: var(--screen-ink); font: 600 16px var(--ui); }
+.richtitle:hover, .richtitle:focus { border-color: color-mix(in srgb, var(--screen-ink) 25%, transparent); outline: none; }
+.richstatus { flex: none; color: var(--screen-dim); font: 500 11px var(--mono); }
+.richtools { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin: 0 12px 8px; padding: 4px 8px;
+  border-radius: 20px; background: color-mix(in srgb, var(--screen-ink) 8%, transparent); }
+.richbtn { min-width: 28px; height: 28px; padding: 0 6px; border: none; border-radius: 6px; background: none; color: var(--screen-ink);
+  font: 600 13px var(--ui); cursor: pointer; }
+.richbtn:hover { background: color-mix(in srgb, var(--screen-ink) 12%, transparent); }
+.richbtn.on { background: color-mix(in srgb, var(--accent) 30%, transparent); color: #fff; }
+.richbtn.rb-i { font-style: italic; font-family: Georgia, serif; }
+.richbtn.rb-s { text-decoration: line-through; }
+.richsep { width: 1px; height: 18px; margin: 0 4px; background: color-mix(in srgb, var(--screen-ink) 20%, transparent); }
+.richscroll { flex: 1; min-height: 0; overflow: auto; padding: 4px 16px 40px; }
+.richpage { max-width: 46em; margin: 0 auto; padding: 44px 56px 64px; border-radius: 6px; background: #1b1c1a;
+  box-shadow: 0 0 0 1px #ffffff12, 0 6px 24px #0008; color: #e9e6dd; font: 1em/1.6 var(--ui); }
+.richpage .ProseMirror { outline: none; min-height: 50vh; }
+.richpage .ProseMirror > * + * { margin-top: .75em; }
+.richpage h1 { font-size: 2em; line-height: 1.2; } .richpage h2 { font-size: 1.5em; } .richpage h3 { font-size: 1.2em; }
+.richpage :is(h1, h2, h3) { margin: 1em 0 .4em; color: #fff; }
+.richpage :is(ul, ol) { padding-left: 1.5em; }
+.richpage blockquote { margin-left: 0; padding-left: 1em; border-left: 3px solid color-mix(in srgb, var(--accent) 70%, transparent); color: #c9c6bd; }
+.richpage code { padding: 1px 5px; border-radius: 4px; background: #ffffff14; font: .9em var(--mono); }
+.richpage pre { padding: 12px 14px; border-radius: 8px; background: #0d0e0c; overflow-x: auto; }
+.richpage pre code { padding: 0; background: none; }
+.richpage a { color: #7fb2ff; }
+.richpage hr { border: none; border-top: 1px solid #ffffff26; }
+.richpage p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; height: 0; color: #ffffff4d; pointer-events: none; }
+/* Light (Settings → Theme, or System in light mode; user): the aluminium frame, with the screens (chat, terminal, tabs,
+   shelf, reader) light too. Everything inside them that assumes a dark screen gets its light counterpart here. */
+:root[data-theme=light] { --screen: #efe9dc; --screen-ink: #1f1f1d; --screen-dim: #7f7c74; color-scheme: light; }
+:root[data-theme=light] {
+  & :is(.chatstatus, #term.chat .composer, #term.chat .keys, .shelftrash) { border-top-color: #00000014; }
+  & :is(#shelf:not(.shut) #shelfhead, #shelfrow) { border-bottom-color: #00000014; }
+  & #padcol:not(.shut) #chips, & #padcol #tabtrash { border-color: #00000014; }
+  & .cmsg.agent > .cprose { background: #0000000b; }
+  & :is(.cprose code, .richpage code) { background: #0000000f; }
+  & :is(.cprose pre, .ctool pre) { background: #0000000d; } /* the dark theme's black wash hid dark text (user) */
+  & :is(.cprose th, .cprose td) { border-color: #00000024; }
+  & .cprose th { background: #00000008; }
+  & .cprose a, & .richpage a, & a.cfile { color: #1f5fd1; }
+  & .cprose blockquote { border-left-color: #00000026; }
+  & :is(.cask, .shelfitem, .att, .shelffolder > .shelfitem) { background: #0000000a; }
+  & .shelffolder { background: none; }
+  & .shelffolder > .shelfitem { border-left-color: #0000001f; }
+  & :is(.shelfacts button, .shelfname, .chatstatus button) { background: #00000010; }
+  & #term.chat .msgfield:has(> #attach:not([hidden])), & #term.chat #msg, & #term.chat #say .msgfield { background: #0000000b; }
+  & #term.chat #msg::placeholder { color: #00000066; }
+  & .chatlog + .chatstatus button { border-color: #0000001f; }
+  & .chatlog + .chatstatus button:hover { border-color: #00000040; }
+  & #term.chat #say .msgbar button:not([type=submit]) { color: #000000a0; box-shadow: inset 0 0 0 1px #00000026; }
+  & #term.chat #say .msgbar button:not([type=submit]):hover, & #term.chat #say .msgbar button[aria-expanded=true] { background: #0000000f; }
+  & :is(.keys button, .composer #mic, .keys .chatstatus button) { background: #0000000f; }
+  & :is(.keys button:active, .keys button[aria-expanded=true]) { background: #00000020; }
+  & .shelfmetafull, & .shelfkind { background: #0000000d; }
+  & :is(.fpart, #term.chat > .agentbar .fpart) { color: #6b675f; }
+  & .fpart.model { color: var(--screen-ink); }
+  & .fpart.mode { color: #c0392b; }
+  & .agentbar .fpart + .fpart { border-left-color: #0000001a; }
+  & :is(.ctool.err summary, .cnote.err, .cfailure strong, .csent:is(.unsent, .err) > pre.cout) { color: #c62828; }
+  & .cdiff .dadd { background: #2ea04324; color: #116329; }
+  & .cdiff .ddel { background: #f8514924; color: #a40e26; }
+  & .cdiff .dhunk { color: #0550ae; }
+  /* the reader: its tab strip a shade darker than the page; documents on eggshell (user) */
+  & .dochead { background: color-mix(in srgb, #000 6%, var(--screen)); }
+  & .richpage { background: #f8f4ea; color: #222; box-shadow: 0 0 0 1px #0000000f, 0 4px 18px #0000001a; }
+  & .richpage :is(h1, h2, h3) { color: #111; }
+  & .richpage blockquote { color: #555; }
+  & .richpage pre { background: #ece6d8; }
+  & .richpage hr { border-top-color: #00000026; }
+  & .richpage p.is-editor-empty:first-child::before { color: #0000004d; }
+  & .richbtn.on { color: var(--screen-ink); }
+  & .docedit { background: #00000008; }
+}
+
+/* Debug view (Settings → Debug view): Deck's hidden text in chats, dimmed and labelled; not there otherwise */
+.cdebug { display: none; }
+#app.debug .cdebug { display: block; align-self: stretch; margin: 2px 0; padding: 6px 10px; border-left: 2px dashed #e0a800;
+  border-radius: 0 6px 6px 0; background: color-mix(in srgb, #e0a800 7%, transparent); color: var(--screen-dim);
+  font: 500 calc(var(--chatfont, 14px) * .8)/1.45 var(--mono); }
+#app.debug .cdebug summary { cursor: pointer; color: #c99700; letter-spacing: .04em; }
+#app.debug .cdebug pre { margin: 6px 0 2px; max-height: 40vh; overflow: auto; white-space: pre-wrap; word-break: break-word; font: inherit; }
+
+/* The kept chats share one place (app.js attachChat), stacked the same size; a parked one is hidden there with its
+   layout kept, so switching back to a long chat costs a few ms, not a full re-layout (~250 ms on a PC, more on a phone) */
+#chatstack { flex: 1; min-height: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+#chatstack > .chatlog { grid-area: 1 / 1; min-height: 0; }
+.chatlog.parked { content-visibility: hidden; visibility: hidden; pointer-events: none; }
+/* The tab column divided by host (app.js renderChips), when more than one host has tabs: each host's name, with its LED
+   colour, over its tabs; "offline" when it can't be reached */
+#chips .chiphost { flex: none; display: flex; align-items: center; gap: 7px; padding: 10px 8px 3px; font: 600 10px var(--mono);
+  letter-spacing: .1em; text-transform: uppercase; color: var(--screen-dim); }
+#chips .chiphost:first-child, #chips .newchip + .chiphost { padding-top: 4px; }
+#chips .chiphost .chled { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--hostled); }
+#chips .chiphost .chfold { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+#chips .chiphost .chfold .fchev { flex: none; opacity: .6; transform: rotate(90deg); transition: transform .15s; }
+#chips .chiphost.shut .chfold .fchev { transform: none; }
+#padcol.shut #chips .chiphost .chfold .fchev { display: none; }
+#chips .chiphost .chname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#chips .chiphost em { font-style: normal; opacity: .7; text-transform: none; letter-spacing: 0; }
+#padcol.shut #chips .chiphost { justify-content: center; padding-left: 0; padding-right: 0; } /* same height open or shut */
+#padcol.shut #chips .chiphost :is(.chname, em) { display: none; }
+/* Several hosts: each header carries its own + (app.js renderChips); the top + shows only as arranging's Done */
+#chips .chiphost .chnew { margin-left: auto; flex: none; min-width: 24px; height: 20px; padding: 0 6px; border: 1px solid currentColor;
+  border-radius: 6px; background: none; color: inherit; font: 600 14px/1 var(--mono); cursor: pointer; opacity: .8; }
+#chips .chiphost .chnew:hover { opacity: 1; }
+#padcol.shut #chips .chiphost .chnew { margin-left: 0; }
+#chips:not(.arranging) .newchip.multi { display: none; }
+#chips .newchip.multi + .chiphost { padding-top: 4px; }
+#padcol #chips .newchip { min-height: 26px; padding-top: 0; padding-bottom: 0; font-size: 14px; } /* a slim + at the top (user) */
+/* Idle (the agent waits for you, or a shell sits at its prompt): a small hollow ring in the tab's lower right (user) */
+#chips .chip { position: relative; }
+#chips .cidle { display: none; position: absolute; right: 5px; bottom: 5px; width: 5px; height: 5px; border-radius: 50%;
+  border: 1.5px solid var(--screen-dim); opacity: .8; pointer-events: none; }
+#chips .chip:is(.c-your_turn, .c-idle) .cidle { display: block; }
+/* A pinned web page on the shelf: ↗ after its title opens it; its address heads the opened card (user) */
+.shelfitem .shelfopen { margin-left: 6px; padding: 0 4px; border-radius: 4px; color: var(--screen-dim); font-weight: 700; text-decoration: none; }
+.shelfitem .shelfopen:hover { color: var(--screen-ink); background: #ffffff14; }
+.shelfitem .shelfurl { display: block; margin-bottom: 6px; font: 11px var(--mono); color: var(--screen-dim); overflow-wrap: anywhere; }
+/* A slash command or an interruption: a quiet centred label, not a bubble (user) */
+.cmsg.user.cslash { align-self: center; display: flex; align-items: baseline; padding: 2px 10px; margin: 0; border-radius: 10px;
+  background: none; color: var(--screen-dim); font: 500 calc(var(--chatfont, 14px) * .8) var(--mono); cursor: default; box-shadow: none; }
+.cmsg.user.cslash > span { display: inline; }
+.cmsg.user.cslash > .cts { position: static; margin: 0 0 0 .4em; font: inherit; opacity: .8; }
+
+/* Settings → Site order */
+.setorder .sethost button[disabled]{opacity:.3}
