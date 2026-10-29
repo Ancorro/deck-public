@@ -1,0 +1,277 @@
+/* Zine: cut and pasted. Paper and ink with nothing soft about it: 2px rules, hard offset shadows, block type for
+   titles (Anton), a grotesk for reading (Space Grotesk), a mono for code. The host's colour is a marker pen: it
+   highlights headings, fills the open tab, underlines what needs you. Things sit slightly askew on the shelf. In
+   Dark the paper is black, the ink white, and the shadows are in the marker's colour. */
+:root {
+  --bg: #0a0a0a; --frame: #0f0f0f; --frame-2: #161616; --frame-3: #202020;
+  --frame-text: #f4f4f4; --frame-text-2: #bdbdbd; --frame-text-3: #7c7c7c; --frame-line: #ffffff33;
+  --pane: #0f0f0f; --pane-2: #181818; --pane-3: #000000;
+  --pane-text: #f4f4f4; --pane-text-2: #bdbdbd; --pane-text-3: #7c7c7c; --pane-line: #ffffff33;
+  --accent: var(--power, #ffe600); --ok: #4cff7a; --warn: #ffd400; --danger: #ff3b30; --link: #9ad0ff;
+  --ink: #f4f4f4; --paper: #0f0f0f; --rule: #f4f4f4; --shadow: var(--accent);
+  --r-s: 0px; --r-m: 0px; --r-l: 0px;
+  --ui: "Space Grotesk", "Archivo", system-ui, sans-serif;
+  --display: "Anton", "Impact", "Arial Narrow", sans-serif;
+  --mono: "Space Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --prose: var(--ui);
+  --label: 700 11px/1.2 var(--ui); --label-tracking: .1em; --label-case: uppercase;
+  --pop-shadow: 0 0 0 2px var(--rule), 6px 6px 0 var(--shadow);
+  --dialog-shadow: 0 0 0 2px var(--rule), 10px 10px 0 var(--shadow);
+  --hard: 4px 4px 0 var(--shadow);
+  --chip-tint: 100%;
+}
+:root[data-theme=light] {
+  --bg: #e9e6df; --frame: #f7f5ef; --frame-2: #efece4; --frame-3: #e3dfd4;
+  --frame-text: #0d0d0d; --frame-text-2: #3d3d3d; --frame-text-3: #7a7a7a; --frame-line: #0d0d0d;
+  --pane: #fbfaf6; --pane-2: #f1efe8; --pane-3: #e7e4db;
+  --pane-text: #0d0d0d; --pane-text-2: #3d3d3d; --pane-text-3: #7a7a7a; --pane-line: #0d0d0d;
+  --ok: #15a04a; --warn: #b58600; --danger: #d81f12; --link: #0d47c9; --ink: #0d0d0d; --paper: #fbfaf6; --rule: #0d0d0d; --shadow: #0d0d0d;
+  --pop-shadow: 0 0 0 2px var(--rule), 6px 6px 0 var(--shadow);
+  --dialog-shadow: 0 0 0 2px var(--rule), 10px 10px 0 var(--shadow);
+  --hard: 4px 4px 0 var(--shadow);
+}
+:root { --wash: color-mix(in srgb, var(--c-text) 8%, transparent); --wash-2: color-mix(in srgb, var(--c-text) 14%, transparent); }
+body { font-size: 15px; line-height: 1.45; }
+* { transition: none !important; }
+.label, .chiphost, .tabfolder .fname, .shelfrowname, #shelf.shut .shelflabel, dialog label, .gstep h3, #setsaved, #runstate, #offstate { font-family: var(--ui); font-weight: 700; }
+/* the masthead: a black bar, the name in block type; the views as stamped tabs */
+.top { margin: 0; padding: max(6px, env(safe-area-inset-top)) 14px 0; border-bottom: 3px solid var(--rule); }
+.brand { align-items: stretch; gap: 0; }
+.hostbtn { gap: 10px; padding: 6px 14px 4px 12px; margin: 0 0 -3px; background: var(--ink); color: var(--paper); }
+.hostbtn .deckname { font: 400 24px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; color: var(--paper); }
+.hostbtn:hover .deckname, .hostbtn:active .deckname { color: var(--accent); }
+.hostbtn .word { display: none; }
+.power { width: 10px; height: 10px; border-radius: 0; box-shadow: none; background: var(--accent); }
+.tabbar { gap: 0; margin-left: 8px; align-items: stretch; }
+.tabbar button { padding: 6px 12px; margin-bottom: -3px; border: 3px solid transparent; border-bottom: none; font: 400 15px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.tabbar button::before { display: none; }
+.tabbar .tl { padding: 0; border: none; }
+.tabbar button.on { border-color: var(--rule); background: var(--frame); }
+.tabbar button.on .tl { border: none; }
+.lcd { align-self: center; padding: 4px 8px; border-radius: 0; background: var(--accent); color: var(--on-accent); font: 700 11px/1 var(--mono); letter-spacing: .04em; box-shadow: 2px 2px 0 var(--rule); }
+.lcd.alert { color: var(--on-accent); }
+.lcd.offline { background: var(--danger); color: #fff; }
+.paneltoggle { align-self: center; }
+.brand .chatstatus { align-self: center; }
+.brand .chatstatus button { border-radius: 0; font: 700 12px var(--ui); text-transform: uppercase; letter-spacing: .06em; color: var(--ink); background: var(--paper); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--danger); }
+.chatspin .dot { border-radius: 0; width: 9px; height: 9px; }
+@media (max-width: 1099px) {
+  .hostbtn { padding: 5px 10px 3px 10px; gap: 8px; }
+  .hostbtn .deckname { font-size: 19px; }
+  .tabbar { margin-left: 6px; }
+  .tabbar button { padding: 5px 8px; font-size: 13px; }
+  .brand .chatstatus { gap: 6px; }
+  .brand .chatstatus button { padding: 3px 7px; font-size: 11px; box-shadow: 0 0 0 2px var(--rule), 2px 2px 0 var(--danger); }
+}
+/* the sheets: ruled 2px with a hard shadow */
+.termwrap { margin: 12px 14px 10px; gap: 0; }
+#term, #padcol:not(.shut), #shelf:not(.shut), #screen, #app.review :is(#docpane, #webpane):not([hidden]) { border-radius: 0; box-shadow: 0 0 0 2px var(--rule), var(--hard); }
+#padcol.shut, #shelf.shut { border-radius: 0; background: var(--ink); color: var(--paper); }
+#padcol.shut { margin-right: 12px; }
+#shelf.shut { margin-left: 12px; }
+#padcol.shut .colhead, #shelf.shut .colhead, #padcol.shut .chip .cicon, #padcol.shut #tabtrash { color: var(--paper); }
+#padcol.shut .chip.on { background: var(--accent); }
+#padcol.shut .chip.on .cicon.tinted { color: var(--on-accent); }
+#padcol:not(.shut) { margin: 0 14px 0 0; }
+#shelf:not(.shut) { margin-left: 14px; }
+@media (max-width: 1099px) { #padcol:not(.shut) { margin: 0; } #shelf:not(.shut) { margin: 0; } }
+#term { padding: 10px; }
+.colhead { height: 26px; color: var(--frame-text-3); }
+/* the tabs: stuck-on labels, each with a big index; the open one in marker */
+#chips { counter-reset: tab; gap: 10px; padding: 12px 10px 10px 10px; }
+.chip { border-radius: 0; min-height: 44px; padding: 6px 10px 6px 8px; font: 500 13px/1.2 var(--ui); color: var(--c-text); background: var(--paper); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--rule); }
+#padcol:not(.shut) .chip[data-name] { counter-increment: tab; }
+#padcol:not(.shut) .chip[data-name]::before { content: counter(tab, decimal-leading-zero); flex: none; width: 26px; font: 400 22px/1 var(--display); color: var(--c-text-3); letter-spacing: -.02em; }
+.chip:hover { background: var(--paper); transform: translate(-1px, -1px); box-shadow: 0 0 0 2px var(--rule), 4px 4px 0 var(--rule); }
+.chip.on { background: var(--accent); color: var(--on-accent); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--rule); font-weight: 700; }
+.chip.on .cicon.tinted, .chip.on::before { color: var(--on-accent) !important; }
+.chip.c-needs_you { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 3px; text-underline-offset: 3px; }
+.chip.armed { background: var(--danger); color: #fff; }
+.chip.off { opacity: .5; }
+.chip .csub { font-weight: inherit; }
+.chiphost { padding: 8px 2px 6px; font: 400 16px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--c-text); border-bottom: 2px solid var(--rule); margin: 4px 0 2px; }
+.chiphost .chled { width: 9px; height: 9px; border-radius: 0; }
+.chiphost em { font: 700 11px var(--ui); letter-spacing: 0; }
+.chnew { height: 22px; min-width: 22px; border-radius: 0; opacity: 1; color: var(--c-text); box-shadow: 0 0 0 2px var(--rule); font: 700 14px/1 var(--ui); }
+.chnew:hover { background: var(--accent); color: var(--on-accent); }
+.newchip { min-height: 30px; background: var(--ink); color: var(--paper); font: 700 16px/1 var(--ui); box-shadow: none; }
+#chips.arranging .newchip { background: var(--accent); color: var(--on-accent); }
+.tabfolder { min-height: 30px; background: none; box-shadow: none; padding-left: 0; }
+.tabfolder .fname { font: 400 14px/1 var(--display); letter-spacing: .06em; }
+.tabfolder .fcount { border-radius: 0; box-shadow: 0 0 0 2px var(--rule); font: 700 10px var(--ui); }
+#padcol:not(.shut) .chip.infolder { margin-left: 16px; }
+#padcol:not(.shut) .chip.infolder::before { content: counter(tab, decimal-leading-zero); position: static; width: 26px; background: none; }
+#padcol:not(.shut) .chip.infolder { margin-left: 10px; box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--rule); }
+#padbar { margin: 10px 10px 0; padding: 6px 8px; border-radius: 0; background: var(--ink); color: var(--paper); font: 400 14px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; }
+#padbar .chled { border-left-color: var(--accent); }
+#padbar .chnew { color: var(--paper); box-shadow: 0 0 0 2px var(--paper); }
+#padslot { margin: 0 10px; padding: 10px 0 0; background: none; border-radius: 0; }
+#padbar + #padslot:not(:has(.cell)) + #chips, #padslot + #chips { border-top: none; }
+#pad { gap: 12px; }
+.key { min-height: 32px; border-radius: 0; background: var(--paper); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--rule); font: 700 12px var(--mono); }
+.key:hover { background: var(--paper); transform: translate(-1px, -1px); }
+.key.pressed, .key:active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--rule), 1px 1px 0 var(--rule); }
+.key.lit { background: var(--accent); color: var(--on-accent); }
+.key .kicon { border-radius: 0; }
+#tabtrash { border-top: 2px solid var(--rule); font: 700 12px var(--ui); text-transform: uppercase; letter-spacing: .06em; }
+/* the chat: pasted-up. The agent's words plain; yours as a black block; tools in a dotted box; turns cut by thick rules */
+#term.chat { --gutter: clamp(16px, 5%, 48px); line-height: 1.5; }
+.chatlog { gap: 14px; padding-top: 20px; }
+.cmsg.agent > .cprose, .cprose { max-width: 70ch; }
+.cmsg.agent > .cprose { padding: 0; background: none; border-radius: 0; }
+/* the user's own message on the right, set apart from the agent's (user: "the user messages look too similar to the agent on most themes, and not right justified") */
+.cmsg.user { align-self: flex-end; max-width: min(70ch, 85%); margin-top: 8px; padding: 10px 14px; border-radius: 0; background: var(--ink); color: var(--paper); box-shadow: var(--hard); font-weight: 500; }
+.cmsg.user:has(> .cts) { margin-bottom: 6px; }
+.cmsg.user > .cts { position: static; display: block; margin: 8px 0 0; text-align: right; font: 700 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); opacity: 1; }
+.cmsg.user > .cts::before { content: "you — "; }
+.cmsg.user.open .uacts, .cqueued .qacts { position: static; margin-top: 10px; justify-content: flex-end; }
+.cmsg.user.open { margin-bottom: 6px; }
+.cqueued { background: var(--paper); color: var(--ink); box-shadow: 0 0 0 2px var(--rule); border: 2px dashed var(--rule); }
+.cqueued.csending { border-style: solid; }
+.cmsg.user.cpeer { border: none; }
+.cmsg.user.cslash { background: none; color: var(--c-text-3); box-shadow: none; align-self: center; margin: 0; padding: 0 8px; font: 700 11px var(--mono); text-transform: uppercase; }
+.cmsg.user.cslash > .cts { display: inline; margin: 0 0 0 .4em; font: inherit; color: inherit; letter-spacing: 0; }
+.cmsg.user.cslash > .cts::before { content: none; }
+.csent { border: 2px solid var(--rule); border-radius: 0; box-shadow: var(--hard); }
+.uacts button, .cqueued .qacts button { border-radius: 0; background: var(--paper); color: var(--ink); box-shadow: 0 0 0 2px var(--rule), 2px 2px 0 var(--rule); font: 700 11px var(--ui); text-transform: uppercase; letter-spacing: .06em; }
+.cmsg.user .uacts button { box-shadow: 0 0 0 2px var(--paper); }
+.cprose pre, .ctool pre { border-radius: 0; background: var(--pane-2); box-shadow: inset 0 0 0 2px var(--rule); }
+.cprose code { border-radius: 0; background: var(--accent); color: var(--on-accent); padding: 0 4px; font-weight: 700; }
+.cprose blockquote { border-left: 4px solid var(--rule); font-weight: 500; }
+.cprose th, .cprose td { border: 2px solid var(--rule); }
+.cprose th { background: var(--ink); color: var(--paper); }
+.cprose b, .cprose strong { background: linear-gradient(transparent 58%, color-mix(in srgb, var(--accent) 70%, transparent) 58%); }
+.ctool { padding: 4px 8px; border: 2px dotted var(--pane-text-3); font-size: calc(var(--chatfont, 14px) * .8); }
+.ctool summary { font-family: var(--mono); }
+.ctool b { font-weight: 700; }
+.ctool[open] { border-style: solid; border-color: var(--rule); }
+.cthink { font-style: italic; font-size: calc(var(--chatfont, 14px) * .9); }
+.cthink summary { font-family: var(--ui); font-weight: 700; font-style: normal; }
+.cturn { margin: 6px 0 -6px; padding: 6px 0 0; border-top: 3px solid var(--rule); background: none; text-align: right; font: 700 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.cturn.shut { border-top-style: dashed; }
+.cturnacts button, .cturnacts .cts { font: 700 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.cask { padding: 12px 14px; border-radius: 0; background: var(--paper); box-shadow: 0 0 0 2px var(--rule), var(--hard); }
+.cask button { border-radius: 0; background: var(--accent); color: var(--on-accent); box-shadow: 0 0 0 2px var(--rule), 2px 2px 0 var(--rule); font: 700 12px var(--ui); text-transform: uppercase; letter-spacing: .04em; }
+.cask button:active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--rule); }
+.cask button[aria-pressed=false], .cask button.cskip { background: var(--paper); color: var(--ink); opacity: 1; }
+.cask .cother { border: 2px solid var(--rule); border-radius: 0; }
+.cfailure { border: 2px solid var(--danger); border-radius: 0; background: none; box-shadow: 4px 4px 0 var(--danger); }
+.cfailure button { border-radius: 0; background: var(--danger); color: #fff; font: 700 12px var(--ui); text-transform: uppercase; box-shadow: 0 0 0 2px var(--rule); }
+.cnote { font: 700 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+.chatlog + .chatstatus :is(.chatspin, button) { border-radius: 0; font: 700 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; background: var(--paper); box-shadow: 0 0 0 2px var(--rule); }
+.chatlog + .chatstatus button { border: none; }
+.agentbar { border-radius: 0; background: none; }
+.agentbar .fpart { font: 700 10px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+.fpart.mode { color: var(--accent); }
+.projbar { font: 700 11px var(--mono); text-transform: uppercase; }
+/* the shelf: clippings taped on, a little askew */
+#shelfrow { padding: 8px 12px; border-bottom: 2px solid var(--rule); }
+.shelfrowname { font: 400 15px/1 var(--display); letter-spacing: .08em; }
+#shelflist { gap: 14px; padding: 14px 12px 12px; }
+.shelfitem { border-radius: 0; background: var(--paper); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--rule); font-size: 13px; }
+.shelfitem:nth-child(odd) { transform: rotate(-.6deg); }
+.shelfitem:nth-child(even) { transform: rotate(.5deg); }
+.shelfitem[open], .shelfitem:hover { transform: none; }
+.shelffolder { box-shadow: none; background: none; transform: none !important; }
+.shelffolder > .shelfitem { background: var(--paper); }
+.shelffolder > summary { font: 400 14px/1 var(--display); letter-spacing: .08em; }
+.shelfacts button { border-radius: 0; background: var(--paper); box-shadow: 0 0 0 2px var(--rule); font: 700 11px var(--ui); text-transform: uppercase; letter-spacing: .04em; }
+.shelfacts button:hover { background: var(--accent); color: var(--on-accent); }
+.shelfkind { border-radius: 0; background: var(--ink); color: var(--paper); font: 700 10px var(--mono); }
+.shelfkind.k-nl { background: var(--accent); color: var(--on-accent); }
+.shelfdel.armed { border-radius: 0; box-shadow: -14px 0 10px -6px var(--paper); }
+.shelfmetafull { border-radius: 0; box-shadow: inset 0 0 0 2px var(--rule); background: none; }
+#shelffile { border-radius: 0; }
+/* keys, the message box, Send: all blocks with hard shadows that press in */
+.keys { gap: 10px; padding: 12px 2px 8px; }
+.keys button { min-width: 40px; border-radius: 0; background: var(--paper); color: var(--ink); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--rule); font: 700 12px var(--mono); }
+.keys button:hover { background: var(--paper); }
+.keys button:active, .keys button[aria-expanded=true] { background: var(--accent); color: var(--on-accent); transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--rule), 1px 1px 0 var(--rule); }
+#term.chat .keys { border-top: 2px solid var(--rule); padding: 12px 10px 8px; }
+.keys .kright { box-shadow: 8px 0 0 var(--c-bg), -6px 0 6px -2px var(--c-bg); }
+.composer { gap: 12px; padding: 10px 2px 4px; }
+#term.chat .composer { padding: 10px 10px 6px; }
+.msgfield { border-radius: 0; background: var(--paper); box-shadow: 0 0 0 2px var(--rule), var(--hard); }
+#term.chat .msgfield { background: var(--paper); box-shadow: 0 0 0 2px var(--rule), var(--hard); }
+.msgfield:focus-within { box-shadow: 0 0 0 2px var(--rule), 4px 4px 0 var(--accent); }
+#msg { font-weight: 500; }
+#msg::placeholder { color: var(--c-text-3); font-weight: 500; }
+.composer button[type=submit] { width: 44px; height: 44px; border-radius: 0; background: var(--ink); color: var(--paper); box-shadow: 0 0 0 2px var(--rule), var(--hard); }
+.composer button[type=submit]:active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--rule), 2px 2px 0 var(--shadow); filter: none; }
+.composer #mic, .composer #upbtn { border-radius: 0; background: var(--paper); color: var(--ink); box-shadow: 0 0 0 2px var(--rule), 2px 2px 0 var(--rule); }
+@media (min-width: 1100px) {
+  #say, #term.chat #say { padding-bottom: 14px; }
+  #say .msgbar button { border-radius: 0; font: 700 11px var(--ui); text-transform: uppercase; letter-spacing: .06em; box-shadow: 0 0 0 2px var(--rule); color: var(--c-text); }
+  #say .msgbar button:hover, #say .msgbar button[aria-expanded=true] { background: var(--accent); color: var(--on-accent); }
+  #say .msgbar :is(#mic, #upbtn) { box-shadow: 0 0 0 2px var(--rule); }
+  #say .msgbar button[type=submit] { background: var(--ink); color: var(--paper); box-shadow: 0 0 0 2px var(--rule), 2px 2px 0 var(--shadow); }
+  #say.shut .msgbar button[type=submit] { border-radius: 0; }
+  #say #msgshut { right: 14px; }
+}
+.hpop, .msgmenu { border-radius: 0; padding: 4px; }
+.hpop button, .msgmenu button { border-radius: 0; font: 700 13px var(--ui); text-transform: uppercase; letter-spacing: .04em; }
+.hpop button:hover, .msgmenu button:hover { background: var(--accent); color: var(--on-accent); }
+.att { border-radius: 0; box-shadow: inset 0 0 0 2px var(--rule); background: none; }
+/* the reader */
+.dochead { background: var(--ink); color: var(--paper); }
+.doctab { border-radius: 0; color: var(--paper); }
+.doctab.on { background: var(--paper); color: var(--ink); }
+.doctab.on::before, .doctab.on::after { display: none; }
+.doctabname { font: 700 12px var(--ui); }
+.dochead .ghost { color: var(--paper); box-shadow: 0 0 0 2px var(--paper); }
+.richpage { border-radius: 0; box-shadow: 0 0 0 2px var(--rule), var(--hard); }
+.richtools { border-radius: 0; box-shadow: inset 0 0 0 2px var(--rule); background: none; }
+/* dialogs: sheets with hard shadows; titles in block type on a marker stroke */
+dialog { border-radius: 0; padding: 24px; }
+dialog::backdrop { background: #00000088; backdrop-filter: none; }
+dialog[open] { animation: none; }
+dialog h2 { display: inline-block; margin-bottom: 18px; font: 400 26px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; background: linear-gradient(transparent 55%, var(--accent) 55%); padding-right: 6px; }
+.askhead { margin-bottom: 16px; }
+.askicon { border-radius: 0; background: var(--ink); color: var(--paper); box-shadow: 2px 2px 0 var(--shadow); }
+.ghost, .primary { border-radius: 0; font: 700 12px var(--ui); text-transform: uppercase; letter-spacing: .06em; }
+.ghost { background: var(--paper); color: var(--ink); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--rule); }
+.ghost:hover { background: var(--paper); transform: translate(-1px, -1px); box-shadow: 0 0 0 2px var(--rule), 4px 4px 0 var(--rule); }
+.ghost:active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--rule), 1px 1px 0 var(--rule); }
+.primary { background: var(--ink); color: var(--paper); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--shadow); }
+.primary:hover { filter: none; background: var(--accent); color: var(--on-accent); }
+.primary:active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--rule), 1px 1px 0 var(--shadow); filter: none; }
+.danger { color: var(--danger); }
+dialog input:not([type=radio]):not([type=checkbox]):not([type=range]):not([type=color]), dialog textarea, dialog select, #askprompt, #askcwd, #screentext, #webaddr {
+  border-radius: 0; background: var(--paper); box-shadow: inset 0 0 0 2px var(--rule); color: var(--ink); }
+dialog input:focus, dialog textarea:focus, dialog select:focus, #askprompt:focus, #askcwd:focus { box-shadow: inset 0 0 0 2px var(--rule), 3px 3px 0 var(--accent); }
+.agentpick span, .types span, .fchip, .lookcard { border-radius: 0; background: var(--paper); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--rule); font: 700 12px var(--ui); text-transform: uppercase; letter-spacing: .04em; }
+.lookcard { text-transform: none; letter-spacing: 0; }
+.agentpick span:hover, .types span:hover, .fchip:hover, .lookcard:hover { background: var(--paper); transform: translate(-1px, -1px); }
+.agentpick input:checked + span, .types input:checked + span, .fchip.on { background: var(--accent); color: var(--on-accent); transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--rule), 1px 1px 0 var(--rule); }
+.lookpick input:checked + .lookcard { background: var(--accent); color: var(--on-accent); }
+.lookpick input:checked + .lookcard small { color: var(--on-accent); }
+.lookcard b { font: 400 16px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.lookcard i { border-radius: 0; box-shadow: inset 0 0 0 2px var(--rule); }
+.agentpick, .types, .lookpick { gap: 10px; margin-bottom: 18px; }
+.buildwith { border-radius: 0; box-shadow: 0 0 0 2px var(--rule); margin-bottom: 20px; }
+.buildwith:hover { background: var(--accent); color: var(--on-accent); }
+.buildwith .kicon { color: inherit; }
+.hostrow { border-radius: 0; background: var(--paper); box-shadow: 0 0 0 2px var(--rule), 3px 3px 0 var(--rule); margin-bottom: 12px; }
+button.hostrow:hover { background: var(--accent); color: var(--on-accent); transform: translate(-1px, -1px); }
+.hostrow b { font: 700 14px var(--ui); }
+.hostrow em { font: 700 10px var(--mono); color: var(--ink); background: var(--accent); padding: 2px 5px; }
+.sethead { padding-top: 20px; }
+.setgroup { display: block; margin: 28px 0 10px; padding-top: 0; border-top: none; font: 400 22px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.setgroup::before { content: "■ "; color: var(--accent); }
+#settings label.yolo { font: 500 13px var(--ui); }
+#settings label.yolo + label.yolo { border-top: 2px dotted var(--frame-line); }
+#settings label.yolo input[type=checkbox] { border-radius: 0; background: var(--paper); box-shadow: inset 0 0 0 2px var(--rule); }
+#settings label.yolo input[type=checkbox]::after { border-radius: 0; background: var(--ink); }
+#settings label.yolo input[type=checkbox]:checked { background: var(--accent); box-shadow: inset 0 0 0 2px var(--rule); }
+#settings label.yolo input[type=checkbox]:checked::after { background: var(--on-accent); }
+#setlinks > * { font: 700 15px var(--ui); text-transform: uppercase; letter-spacing: .04em; }
+#setlinks > * + * { border-top: 2px solid var(--rule); }
+#setlinks small { font: 500 11px var(--ui); text-transform: none; letter-spacing: 0; }
+@media (max-width: 1099px) { .setsec { border-radius: 0; background: var(--paper); box-shadow: 0 0 0 2px var(--rule), 4px 4px 0 var(--rule); margin: 4px 6px 10px 2px; } }
+.sethint, .hint { font-weight: 500; }
+.gframe { border-radius: 0; box-shadow: inset 0 0 0 2px var(--rule); background: none; }
+.gkey, .gpill { border-radius: 0; background: var(--paper); box-shadow: 0 0 0 2px var(--rule), 2px 2px 0 var(--rule); }
+.gtap { border-radius: 0; }
+#runtext, #offtext { border-radius: 0; box-shadow: inset 0 0 0 2px var(--rule); }
+.toast { border-radius: 0; background: var(--accent); color: var(--on-accent); font: 700 12px/1.4 var(--ui); text-transform: uppercase; letter-spacing: .04em; box-shadow: 0 0 0 2px var(--rule), 4px 4px 0 var(--rule); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }

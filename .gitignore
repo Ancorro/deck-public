@@ -1,0 +1,19 @@
+__pycache__/
+.pytest_cache/
+*.tmp
+deck/static/deck.apk
+/msys/
+/desktop/deck
+/desktop/deck.exe
+uv.lock
+.venv/
+/dist/
+# Signing keys never go in the repo (the APK key lives in the GitHub secrets and the owner's backup)
+*.keystore
+*.jks
+*.p12
+deploy/openclaw-bridge/node_modules/
+node_modules/
+venv/
+build/
+.ruff_cache/

@@ -1,0 +1,239 @@
+/* Pad: the console, with the sessions as keys on a pad (where Deck began: a Stream Deck). A matte anodised body
+   (bead-blasted aluminium in Light) with the displays recessed into it: dark glass with a bevelled rim. The tab column
+   is a grid of square keys, each a session: its agent's mark in the session's colour, its name under, a status LED in
+   the corner; the open one lit. Scripts are keys too. Controls are keycaps that press; readouts are dot-matrix; labels
+   are tracked mono caps. On the displays a chat reads as a log: the agent's words set plain on the glass, your
+   entries as bars in the accent, tool calls as mono lines, turns ruled off. Archivo and IBM Plex Mono. */
+:root {
+  --bg: #08090a; --frame: #17181a; --frame-2: #202124; --frame-3: #2a2b2f;
+  --frame-text: #e8e5dc; --frame-text-2: #9d9a92; --frame-text-3: #646259; --frame-line: #ffffff12;
+  --pane: #0c0d0c; --pane-2: #151614; --pane-3: #050605;
+  --pane-text: #e6e2d6; --pane-text-2: #9a978d; --pane-text-3: #5f5d55; --pane-line: #ffffff12;
+  --ok: #3ddc6a; --warn: #ffb23d; --danger: #ff453a; --link: #7fb0ff;
+  --lcd: #ffb23d; /* the readout's phosphor */
+  --r-s: 6px; --r-m: 8px; --r-l: 12px;
+  --ui: "Archivo", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "Noto Sans Symbols 2", ui-monospace, monospace;
+  --label: 600 10px/1.2 var(--mono); --label-tracking: .14em; --label-case: uppercase;
+  --cap: linear-gradient(180deg, #2b2c30, #222327); /* a keycap's face */
+  --cap-shadow: inset 0 1px 0 #ffffff18, inset 0 -1px 0 #00000080, 0 1px 0 #000, 0 2px 2px #0006;
+  --cap-pressed: inset 0 1px 3px #000c, 0 0 0 #000;
+  --recess: inset 0 0 0 1px #000, inset 0 2px 6px #000c, 0 0 0 1px #ffffff0f, 0 1px 0 #ffffff08; /* a display's rim */
+  --pop-shadow: 0 0 0 1px #ffffff14, 0 1px 0 #000 inset, 0 16px 40px #000c;
+  --dialog-shadow: 0 0 0 1px #000, inset 0 1px 0 #ffffff14, 0 40px 80px #000c;
+  --chip-tint: 22%;
+}
+:root[data-theme=light] {
+  --bg: #a9a69f; --frame: #d6d3cb; --frame-2: #c8c5bd; --frame-3: #bbb8af;
+  --frame-text: #1b1b19; --frame-text-2: #4e4c46; --frame-text-3: #7f7c74; --frame-line: #00000018;
+  --pane: #ede8dc; --pane-2: #e2dcce; --pane-3: #d7d1c2;
+  --pane-text: #1f1f1c; --pane-text-2: #5a574f; --pane-text-3: #8a867c; --pane-line: #00000016;
+  --warn: #b25c00; --danger: #c4281f; --link: #1d5bcf; --lcd: #c45a00;
+  --cap: linear-gradient(180deg, #f3f1ec, #e4e1da);
+  --cap-shadow: inset 0 1px 0 #ffffffc0, inset 0 -1px 0 #00000022, 0 1px 0 #00000040, 0 2px 2px #0002;
+  --cap-pressed: inset 0 1px 3px #00000040;
+  --recess: inset 0 0 0 1px #00000030, inset 0 2px 6px #0000002a, 0 1px 0 #ffffff80;
+  --pop-shadow: 0 0 0 1px #00000018, 0 16px 40px #0005;
+  --dialog-shadow: 0 0 0 1px #00000030, inset 0 1px 0 #ffffff90, 0 40px 80px #0006;
+}
+body { font-weight: 500; }
+/* the body: a matte slab; on a wide touch screen a handset on the desk, on a PC the whole window */
+#app { background: linear-gradient(180deg, color-mix(in srgb, var(--frame) 93%, #fff) 0, var(--frame) 24px); box-shadow: inset 0 1px 0 #ffffff10; }
+@media (min-width: 520px) and (max-width: 1099px) {
+  body { display: grid; place-items: center; }
+  #app { width: 420px; height: min(900px, calc(100dvh - 48px)); border-radius: 38px; padding: 0 0 10px;
+    box-shadow: inset 0 1px 0 #ffffff14, 0 0 0 1px #000, 0 0 0 3px var(--frame-3), 0 40px 80px -20px #000c; }
+}
+@media (min-width: 1100px) {
+  html:not(.pc) body { display: grid; place-items: start center; }
+  html:not(.pc) #app { width: calc(100vw - 32px); max-width: 1800px; height: calc(100dvh - 24px); margin-top: 12px; border-radius: 20px;
+    box-shadow: inset 0 1px 0 #ffffff14, 0 0 0 1px #000, 0 30px 60px -20px #000c; }
+}
+/* header: a plate with the name engraved in mono, the LED, the wordmark; tabs as tracked caps on a rail */
+.top { padding-bottom: 4px; }
+.hostbtn .deckname { font: 500 13px var(--mono); letter-spacing: .04em; color: var(--frame-text-2); }
+.hostbtn:hover .deckname { color: var(--frame-text); }
+.hostbtn .word { font: 700 15px var(--ui); letter-spacing: -.02em; color: var(--frame-text); }
+.power { width: 7px; height: 7px; margin: 0 2px; box-shadow: 0 0 0 2px #000, 0 0 0 3px #ffffff10, 0 0 10px 1px var(--accent); }
+.tabbar button { padding: 7px 0; font: 700 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.tabbar .tl { border-bottom-width: 2px; }
+/* the readout: a dot-matrix LCD in the plate */
+.lcd { position: relative; overflow: hidden; padding: 5px 9px; border-radius: 4px; background: #050605; color: var(--lcd);
+  font: 700 11px/1 var(--mono); letter-spacing: .12em; box-shadow: inset 0 1px 4px #000, 0 0 0 1px #ffffff10; text-shadow: 0 0 6px color-mix(in srgb, var(--lcd) 60%, transparent); }
+.lcd::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, #0000 0 2px, #0004 2px 3px); }
+.lcd.offline { color: var(--danger); }
+.brand .chatstatus button { border-radius: 4px; font: 700 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+/* the displays: recessed glass with a rim */
+#term, #padcol, #shelf, #screen, #app.review :is(#docpane, #webpane):not([hidden]) { box-shadow: var(--recess); }
+#padcol.shut, #shelf.shut { box-shadow: inset 0 0 0 1px #000, 0 0 0 1px #ffffff0f; }
+@media (max-width: 1099px) { #padcol.shut, #shelf.shut { box-shadow: inset 0 0 0 1px #000c; } }
+/* the tab column: tabs as rows on the glass, the open one washed and ringed in its session's colour */
+.chip { font: 500 12px var(--ui); }
+.chip .csub { font-weight: 400; }
+.chiphost { font-weight: 700; }
+#padbar { font: 700 10px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+.key { font-weight: 500; }
+.colhead { color: var(--pane-text-3); }
+#tabtrash { font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+/* the chat as a log on the display */
+#term.chat { line-height: 1.5; }
+.chatlog { gap: 12px; }
+.cmsg.agent > .cprose { padding: 0; background: none; border-radius: 0; max-width: 72ch; }
+/* the user's own message on the right, set apart from the agent's (user: "the user messages look too similar to the agent on most themes, and not right justified") */
+.cmsg.user { align-self: flex-end; max-width: min(72ch, 85%); margin-top: 6px; padding: 9px 13px; border-radius: var(--r-s);
+  background: color-mix(in srgb, var(--accent) 24%, var(--pane-2)); color: var(--pane-text); box-shadow: inset -3px 0 0 var(--accent); }
+.cmsg.user:has(> .cts) { margin-bottom: 2px; }
+.cmsg.user > .cts { position: static; display: block; margin: 5px 0 0; text-align: right; font: 600 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--pane-text-3); opacity: 1; }
+.cmsg.user > .cts::before { content: "you · "; }
+.cmsg.user.open .uacts, .cqueued .qacts { position: static; margin-top: 8px; justify-content: flex-end; }
+.cmsg.user.open { margin-bottom: 2px; }
+.cqueued { border-left-style: dashed; background: color-mix(in srgb, var(--accent) 6%, transparent); color: var(--pane-text-2); }
+.cqueued.csending { color: var(--pane-text); }
+.cmsg.user.cpeer { border: none; }
+.cmsg.user.cslash { background: none; align-self: center; margin: 0; padding: 2px 10px; font-size: calc(var(--chatfont, 14px) * .8); }
+.cmsg.user.cslash > .cts { display: inline; margin: 0 0 0 .4em; font: inherit; letter-spacing: 0; text-transform: none; }
+.cmsg.user.cslash > .cts::before { content: none; }
+.csent { border: none; border-left: 3px solid var(--pane-line); border-radius: 0; padding-left: 14px; }
+.uacts button, .cqueued .qacts button { border-radius: 4px; font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; background: var(--cap); color: var(--pane-text); box-shadow: var(--cap-shadow); }
+.cprose pre, .ctool pre { border-radius: 4px; background: var(--pane-3); box-shadow: inset 0 0 0 1px var(--pane-line); }
+.cprose code { border-radius: 3px; }
+.ctool summary::before { content: "› "; color: var(--pane-text-3); }
+.ctool, .cthink { font-size: calc(var(--chatfont, 14px) * .8); }
+.cthink summary { font-family: var(--ui); font-style: italic; }
+.cturn { margin: 4px 0 -6px; padding: 6px 0 0; border-top: 1px dashed var(--pane-line); background: none; text-align: right; font: 600 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.cturn.shut { border-top-style: solid; }
+.cturnacts button, .cturnacts .cts { font: 600 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.cask { border-radius: var(--r-s); background: var(--pane-2); box-shadow: inset 0 0 0 1px var(--pane-line); padding: 10px 12px; }
+.cask button { border-radius: 4px; font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; box-shadow: var(--cap-shadow); }
+.cask button:active { box-shadow: var(--cap-pressed); transform: translateY(1px); }
+.cask button[aria-pressed=false], .cask button.cskip { box-shadow: inset 0 0 0 1px var(--pane-text-3); }
+.cask .cother { border-radius: 4px; background: var(--pane-3); box-shadow: inset 0 1px 3px #000c, 0 0 0 1px var(--pane-line); border: none; }
+:root[data-theme=light] .cask .cother { box-shadow: inset 0 1px 3px #0002, 0 0 0 1px var(--pane-line); }
+.cfailure { border-radius: var(--r-s); }
+.cfailure button { border-radius: 4px; font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; box-shadow: var(--cap-shadow); }
+.cnote { font: 500 calc(var(--chatfont, 14px) * .8) var(--mono); }
+.chatlog + .chatstatus :is(.chatspin, button) { border-radius: 4px; font: 600 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.chatstatus button { font-family: var(--mono); }
+/* the agent's status line: a strip of readouts under the display */
+.agentbar { border-radius: 4px; background: var(--pane-3); box-shadow: inset 0 0 0 1px var(--pane-line); }
+.agentbar .fpart { font: 600 10px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.fpart.model { color: var(--pane-text); }
+.fpart.mode { color: var(--lcd); }
+@media (max-width: 1099px) { .agentbar { background: none; box-shadow: none; } }
+/* the shelf: cards on the glass */
+.shelfitem { border-radius: var(--r-s); background: var(--pane-2); box-shadow: inset 0 0 0 1px var(--pane-line); }
+.shelfrowname, #shelf.shut .shelflabel { font-weight: 700; }
+.shelfacts button { border-radius: 4px; font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; background: var(--cap); box-shadow: var(--cap-shadow); }
+.shelfkind { border-radius: 3px; }
+/* keycaps */
+.keys button, .ghost, .primary, .agentpick span, .types span, .fchip, .chnew, .composer #mic, .composer #upbtn {
+  border-radius: var(--r-s); background: var(--cap); color: var(--frame-text); font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  box-shadow: var(--cap-shadow); transition: transform .06s, box-shadow .06s, background var(--quick); }
+.keys button, .composer #mic, .composer #upbtn { color: var(--c-text); }
+#term.chat .keys button, #term.chat .composer #mic, #term.chat .composer #upbtn { --cap: linear-gradient(180deg, #202120, #171816); }
+:root[data-theme=light] #term.chat .keys button, :root[data-theme=light] #term.chat .composer :is(#mic, #upbtn) { --cap: linear-gradient(180deg, #f7f4ee, #e9e5dc); }
+.keys button { min-width: 44px; padding: 9px 10px; }
+.keys button:hover, .ghost:hover, .agentpick span:hover, .types span:hover, .fchip:hover { background: var(--cap); filter: brightness(1.1); }
+.keys button:active, .keys button[aria-expanded=true], .ghost:active, .primary:active, .composer #mic:active, .composer #upbtn:active {
+  transform: translateY(1px); box-shadow: var(--cap-pressed); filter: none; }
+.primary { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 90%, #fff), var(--accent)); color: var(--on-accent); }
+.primary:hover { filter: brightness(1.06); }
+.agentpick input:checked + span, .fchip.on { background: var(--frame-text); color: var(--frame); box-shadow: var(--cap-pressed); transform: translateY(1px); }
+.types input:checked + span { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 90%, #fff), var(--accent)); color: var(--on-accent); box-shadow: var(--cap-pressed); transform: translateY(1px); }
+.chnew { height: 20px; min-width: 24px; font-size: 13px; opacity: 1; box-shadow: var(--cap-shadow); }
+.chnew:hover { background: var(--cap); filter: brightness(1.1); }
+/* the message box: a well in the plate; Send a keycap in the accent */
+.msgfield { border-radius: var(--r-m); background: var(--pane-3); box-shadow: inset 0 1px 4px #000c, 0 0 0 1px var(--frame-line), 0 1px 0 #ffffff0a; }
+:root[data-theme=light] .msgfield { background: var(--pane); box-shadow: inset 0 1px 4px #0000002a, 0 0 0 1px var(--frame-line), 0 1px 0 #ffffff80; }
+#term.chat .msgfield { background: var(--pane-3); box-shadow: inset 0 1px 4px #000c, 0 0 0 1px var(--pane-line); }
+:root[data-theme=light] #term.chat .msgfield { background: var(--pane-2); box-shadow: inset 0 1px 4px #0000002a, 0 0 0 1px var(--pane-line); }
+.msgfield:focus-within { box-shadow: inset 0 1px 4px #000c, 0 0 0 1.5px var(--accent); }
+#msg { font-weight: 500; }
+.composer button[type=submit] { width: 44px; height: 44px; border-radius: var(--r-s); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 90%, #fff), var(--accent));
+  box-shadow: var(--cap-shadow); }
+.composer button[type=submit]:active { transform: translateY(1px); box-shadow: var(--cap-pressed); filter: none; }
+.composer #mic, .composer #upbtn { width: 36px; height: 36px; }
+@media (min-width: 1100px) {
+  #say .msgbar button { border-radius: 4px; font: 600 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; background: none; box-shadow: inset 0 0 0 1px var(--c-line); }
+  #say .msgbar button:hover, #say .msgbar button[aria-expanded=true] { background: var(--wash); }
+  #say .msgbar :is(#mic, #upbtn) { background: none; box-shadow: inset 0 0 0 1px var(--c-line); }
+  #say .msgbar button[type=submit] { width: 32px; height: 26px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 90%, #fff), var(--accent)); box-shadow: var(--cap-shadow); }
+  #say .msgbar button[type=submit]:active { transform: translateY(1px); box-shadow: var(--cap-pressed); }
+}
+.hpop, .msgmenu { border-radius: var(--r-m); }
+.hpop button, .msgmenu button { font: 500 14px var(--ui); }
+.att { border-radius: 4px; }
+/* the reader */
+.dochead { background: var(--pane-3); box-shadow: inset 0 -1px 0 var(--pane-line); }
+.doctabname { font: 500 12px var(--ui); }
+/* dialogs: plates on the desk */
+dialog { border-radius: var(--r-l); background: linear-gradient(180deg, color-mix(in srgb, var(--frame) 93%, #fff) 0, var(--frame) 28px); }
+.sethead { background: linear-gradient(180deg, color-mix(in srgb, var(--frame) 93%, #fff) 0, var(--frame) 20px, var(--frame) 80%, transparent); }
+dialog h2 { font: 700 17px var(--ui); letter-spacing: -.01em; }
+dialog label { font: var(--label); letter-spacing: var(--label-tracking); text-transform: var(--label-case); }
+dialog input:not([type=radio]):not([type=checkbox]):not([type=range]):not([type=color]), dialog textarea, dialog select, #askprompt, #askcwd, #screentext, #webaddr {
+  border-radius: var(--r-s); background: var(--pane-3); box-shadow: inset 0 1px 4px #000c, 0 0 0 1px var(--frame-line); }
+:root[data-theme=light] :is(dialog input:not([type=radio]):not([type=checkbox]):not([type=range]):not([type=color]), dialog textarea, dialog select, #askprompt, #askcwd, #screentext) {
+  background: var(--pane); box-shadow: inset 0 1px 4px #0000002a, 0 0 0 1px var(--frame-line); }
+dialog input:focus, dialog textarea:focus, dialog select:focus, #askprompt:focus, #askcwd:focus { box-shadow: inset 0 1px 4px #000c, 0 0 0 1.5px var(--accent); }
+.askicon { border-radius: var(--r-s); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 90%, #fff), var(--accent)); box-shadow: var(--cap-shadow); }
+.buildwith { border-radius: var(--r-s); }
+.lookcard b { font: 600 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.lookcard { border-radius: var(--r-s); }
+.hostrow { border-radius: var(--r-s); background: var(--frame-2); box-shadow: inset 0 0 0 1px var(--frame-line); }
+.hostrow b { font-family: var(--mono); font-size: 13px; }
+.setgroup { font: 700 16px var(--ui); letter-spacing: -.01em; }
+.setgroup::before { content: ""; display: inline-block; width: 3px; height: .75em; margin-right: 8px; border-radius: 1px; background: var(--accent); vertical-align: -1px; box-shadow: 0 0 6px var(--accent); }
+#settings label.yolo input[type=checkbox] { background: var(--pane-3); box-shadow: inset 0 1px 3px #000c, 0 0 0 1px var(--frame-line); }
+:root[data-theme=light] #settings label.yolo input[type=checkbox] { background: var(--frame-3); box-shadow: inset 0 1px 3px #0003; }
+#settings label.yolo input[type=checkbox]::after { background: var(--frame-text-2); box-shadow: 0 1px 2px #000a; }
+#settings label.yolo input[type=checkbox]:checked { background: var(--accent); box-shadow: inset 0 1px 3px #0006; }
+#settings label.yolo input[type=checkbox]:checked::after { background: #fff; }
+#setlinks > * { font: 700 14px var(--ui); }
+#setlinks small { font: 500 10px var(--mono); letter-spacing: .06em; }
+@media (max-width: 1099px) { .setsec { border-radius: var(--r-m); background: var(--frame-2); box-shadow: inset 0 0 0 1px var(--frame-line); } }
+.gframe { border-radius: var(--r-s); }
+.gkey, .gpill { border-radius: 4px; background: var(--cap); box-shadow: var(--cap-shadow); font-family: var(--mono); }
+#runtext, #offtext { border-radius: var(--r-s); box-shadow: var(--recess); }
+#runstate, #offstate, #setsaved { color: var(--lcd); }
+.toast { border-radius: 4px; background: #050605; color: var(--lcd); font: 700 11px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  box-shadow: inset 0 1px 4px #000, 0 0 0 1px #ffffff14, 0 10px 30px #000a; }
+
+/* ---- the pad: sessions and scripts as square keys ---- */
+#padcol:not(.shut) #chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 8px; padding: 8px; }
+#padcol:not(.shut) #chips > :is(.chiphost, .newchip, .tabfolder, .foldername) { grid-column: 1 / -1; }
+#padcol:not(.shut) .chip[data-name] { aspect-ratio: 1; min-height: 0; flex-direction: column; justify-content: center; gap: 6px; padding: 10px 8px 8px; margin: 0;
+  border-radius: 10px; white-space: normal; background: var(--cap); box-shadow: var(--cap-shadow); color: var(--pane-text-2); font: 500 11px/1.25 var(--ui); text-align: center; }
+#padcol:not(.shut) .chip[data-name]:hover { filter: brightness(1.12); }
+#padcol:not(.shut) .chip[data-name] .cicon { width: auto; font-size: 26px; line-height: 1; }
+#padcol:not(.shut) .chip[data-name] .ctext { flex: none; width: 100%; align-items: center; }
+#padcol:not(.shut) .chip[data-name] .csub { width: auto; min-width: 0; max-width: 100%; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; text-overflow: ellipsis; -webkit-mask: none; mask: none; }
+#padcol:not(.shut) .chip .csub.tick > span { animation: none; display: inline; }
+#padcol:not(.shut) .chip.on { --chip-tint: 0%; color: var(--pane-text); background: linear-gradient(180deg, color-mix(in srgb, var(--tint, var(--accent)) 34%, #1a1b1a), color-mix(in srgb, var(--tint, var(--accent)) 22%, #141514));
+  box-shadow: inset 0 0 0 1.5px var(--tint, var(--accent)), inset 0 1px 0 #ffffff20, 0 0 16px -2px color-mix(in srgb, var(--tint, var(--accent)) 60%, transparent), 0 1px 0 #000; }
+:root[data-theme=light] #padcol:not(.shut) .chip.on { background: linear-gradient(180deg, color-mix(in srgb, var(--tint, var(--accent)) 26%, #fff), color-mix(in srgb, var(--tint, var(--accent)) 18%, #f0ede6)); }
+#padcol:not(.shut) .chip.armed { background: var(--danger); color: #fff; }
+#padcol:not(.shut) .chip.c-needs_you { color: var(--warn); }
+/* the status LED in the key's corner: lit green working, amber when it needs you, a dim ring idle */
+#padcol:not(.shut) .chip[data-name]::before { content: ""; position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: #2a2b2a; box-shadow: inset 0 0 0 1px #000; }
+#padcol:not(.shut) .chip.c-working::before { background: var(--ok); box-shadow: 0 0 6px var(--ok); animation: chatpulse 1.6s ease-in-out infinite; }
+#padcol:not(.shut) .chip.c-needs_you::before { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+#padcol:not(.shut) .chip.remote::after { top: auto; bottom: 7px; right: 7px; }
+#padcol:not(.shut) .cidle { right: auto; left: 7px; top: 7px; bottom: auto; }
+#padcol:not(.shut) .chip.infolder { margin-left: 0; }
+#padcol:not(.shut) .chip.infolder::before { content: ""; left: auto; top: 7px; bottom: auto; width: 6px; height: 6px; }
+#padcol:not(.shut) .tabfolder { aspect-ratio: auto; flex-direction: row; background: none; box-shadow: none; }
+#padcol:not(.shut) .newchip { aspect-ratio: auto; min-height: 28px; background: none; box-shadow: inset 0 0 0 1px var(--pane-line); border-radius: 6px; }
+#padcol:not(.shut) #chips.arranging .newchip { background: var(--accent); }
+/* scripts: smaller keys in the same grid, the icon in the key's colour */
+#padcol:not(.shut) #pad { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+#padcol:not(.shut) .key { aspect-ratio: 1.4; min-height: 0; flex-direction: column; justify-content: center; gap: 5px; padding: 6px; border-radius: 8px;
+  background: var(--cap); box-shadow: var(--cap-shadow); font: 600 9px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--pane-text-2); text-align: center; }
+#padcol:not(.shut) .key .kicon { width: 22px; height: 22px; border-radius: 6px; font-size: 12px; }
+#padcol:not(.shut) .key .kicon .logo { width: 13px; height: 13px; }
+#padcol:not(.shut) .key .klabel { flex: none; width: 100%; text-align: center; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#padcol:not(.shut) .key.lit { box-shadow: inset 0 0 0 1.5px var(--kc), var(--cap-shadow); color: var(--pane-text); }
+#padcol:not(.shut) .key.pressed, #padcol:not(.shut) .key:active { transform: translateY(1px); box-shadow: var(--cap-pressed); }
+#padslot { background: none; padding: 0 8px 8px; margin: 0; }
+@media (min-width: 1100px) { #padcol:not(.shut) { width: 256px; } #padcol .chip { font-size: 11px; } }

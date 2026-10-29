@@ -1,0 +1,4 @@
+#!/bin/sh
+# Pair a phone or browser with this Deck: shows a one-time QR code, then asks you to approve the device.
+# Installed as a link into the checkout's deploy/, which is how it finds Deck.
+PYTHONPATH="$(dirname "$(dirname "$(readlink -f "$0")")")" exec python3 -m deck.auth "$@"

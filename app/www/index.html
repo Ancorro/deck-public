@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>deck</title>
+<style>
+  /* The app's own page (its host list): the system's type and one quiet dark surface, like the Plain look; it can't read
+     the Deck's look, and it must open with no network. */
+  :root { --bg: #0c0c0d; --card: #151517; --line: #ffffff14; --ink: #e8e8ea; --ink2: #9b9ba1; --ink3: #65656b; --accent: #ff4f12; color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+    padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); -webkit-font-smoothing: antialiased; }
+  h1 { display: flex; align-items: center; gap: 8px; margin: 8px 2px 18px; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+  h1 span { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+  .host { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; margin-bottom: 8px; border-radius: 10px; background: var(--card);
+    box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); text-align: left; }
+  .host:active { background: #1f1f22; }
+  .host b { font-weight: 600; font-size: 15px; }
+  .host small { margin-left: auto; color: var(--ink3); font-size: 12px; }
+  .host .x { margin-left: 8px; padding: 4px 8px; border-radius: 6px; color: var(--ink3); }
+  .host.member { padding: 10px 16px 10px 28px; margin: -2px 0 8px; background: none; }
+  .host.member b { font-size: 14px; font-weight: 500; }
+  form { display: flex; gap: 8px; margin-top: 18px; }
+  input { flex: 1; min-width: 0; padding: 12px; border: none; border-radius: 10px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink);
+    font: 14px ui-monospace, Menlo, monospace; outline: none; }
+  input:focus { box-shadow: inset 0 0 0 1px var(--ink3); }
+  button.add { padding: 0 16px; border-radius: 10px; background: var(--ink); color: var(--bg); font-weight: 600; }
+  p { color: var(--ink2); font-size: 13px; }
+  .err { color: #f0564c; }
+  label.opt { display: flex; align-items: center; gap: 10px; margin-top: 16px; color: var(--ink); font-size: 14px; }
+  label.opt input { flex: none; width: 20px; height: 20px; accent-color: var(--accent); }
+  button.notes, button.scan { width: 100%; margin-top: 10px; padding: 14px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font-weight: 500; }
+  button.notes { margin-top: 22px; }
+  #notesview[hidden], #home[hidden] { display: none; }
+  #notesview .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  #notesview .bar b { font-size: 18px; flex: 1; }
+  #notesview select, #notesview textarea { width: 100%; padding: 10px; border: none; border-radius: 10px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--ink); font: 13px/1.45 ui-monospace, Menlo, monospace; }
+  #notesview textarea { height: calc(100vh - 260px); margin-top: 8px; resize: none; }
+  .ghost { padding: 10px 14px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font-weight: 500; font-size: 14px; }
+  .primary { padding: 10px 16px; border-radius: 8px; background: var(--ink); color: var(--bg); font-weight: 600; font-size: 14px; }
+  /* The list's own questions (no system dialogs): add a host, remove one */
+  dialog { width: min(92vw, 420px); padding: 20px; border: none; border-radius: 14px; background: var(--card); color: var(--ink); box-shadow: 0 0 0 1px var(--line), 0 20px 50px #000a; }
+  dialog::backdrop { background: rgba(0, 0, 0, .6); }
+  dialog p { margin: 0 0 18px; color: var(--ink); font-size: 15px; }
+  dialog .row { display: flex; justify-content: flex-end; gap: 8px; }
+  #scanview[hidden] { display: none; }
+  #scanview { position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column; background: #000; }
+  #scanview video { flex: 1; min-height: 0; width: 100%; object-fit: cover; }
+  #scanview .bar { display: flex; align-items: center; gap: 12px; padding: 16px max(16px, env(safe-area-inset-bottom)); background: var(--bg); }
+  #scanview .bar span { flex: 1; color: var(--ink2); font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="home">
+<h1><span></span>deck</h1>
+<div id="list"></div>
+<button class="scan" id="scanbtn">Scan a pairing code</button>
+<form id="addform">
+  <input id="url" placeholder="Pairing link or host address" inputmode="url" autocomplete="off" autocapitalize="off">
+  <button class="add">Add</button>
+</form>
+<p id="msg"></p>
+<button class="notes" id="notesbtn">Notes</button>
+</div>
+<dialog id="ask"><p id="asktext"></p><div class="row"><button class="ghost" id="askno">Cancel</button><button class="primary" id="askyes">OK</button></div></dialog>
+<!-- Scan: a host's pairing QR read in the app itself, so it pairs over iroh with no browser or Tailscale -->
+<div id="scanview" hidden><video id="scanvideo" playsinline muted></video>
+  <div class="bar"><span id="scaninfo">Point the camera at the pairing code on your PC (Settings → Devices).</span><button class="ghost" id="scanstop">Cancel</button></div></div>
+<div id="notesview" hidden>
+  <div class="bar"><b>Notes</b><button class="ghost" id="notesback">Back</button><button class="primary" id="notessave">Save</button></div>
+  <p id="notesinfo"></p>
+  <select id="notesfile" aria-label="File"></select>
+  <textarea id="notestext" spellcheck="false"></textarea>
+</div>
+<script src="vendor/jsQR.js"></script>
+<script>
+"use strict";
+const $ =(id) => document.getElementById(id);
+// Hosts this phone knows: [{name, url, used}]. Saved in the app's own storage (not tied to any host's site).
+const KEY = "deck-app-hosts";
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+// Only saved hosts may load in the app and use its plugins (MainActivity.guard): tell it the list on every change.
+const Hosts = window.Capacitor?.Plugins?.Hosts;
+const trust = () => Hosts?.sync({ origins: load().filter((h) => /^https:/.test(h.url)).map((h) => h.url) }).catch(() => {});
+const save = (hosts) => { localStorage.setItem(KEY, JSON.stringify(hosts)); return trust(); };
+const nameOf = (url) => new URL(url).hostname.split(".")[0];
+
+// Hosts reached over iroh ({key}, url "iroh:<key>") go through the app's tunnel: a local port that forwards to them.
+const Tunnel = window.Capacitor?.Plugins?.Tunnel;
+const WAIT = 2000; // ms a host gets to answer before the next one is tried (user: 4 s made restarts slow)
+// The phone's own setting, set in a host page's Settings → Advanced (user): on by default; off, a down host just says
+// so. In the app's files (app.json), which host pages share; the old localStorage flag is read once and carried over.
+let appPrefs = {};
+const failover = () => appPrefs.failover !== false;
+async function loadAppPrefs() {
+  try { appPrefs = JSON.parse((await Fs.readFile({ path: "app.json", directory: "DATA", encoding: "utf8" })).data) || {}; }
+  catch { appPrefs = {}; }
+  if (!("failover" in appPrefs) && localStorage.getItem("deck-app-failover") === "off") {
+    appPrefs.failover = false;
+    await Fs.writeFile({ path: "app.json", data: JSON.stringify(appPrefs), directory: "DATA", encoding: "utf8", recursive: true }).catch(() => {});
+  }
+}
+
+// The address to load for a host, or an error if it doesn't answer. Any reply counts (a refusal is still a live host).
+// A host with both a Tailscale address and an iroh key tries the address first (no tailnet on this phone: its name
+// doesn't resolve, which fails at once), then the tunnel.
+async function reach(h) {
+  if (/^https:/.test(h.url)) {
+    const stop = new AbortController();
+    const timer = setTimeout(() => stop.abort(), WAIT);
+    try {
+      await fetch(`${h.url}/static/manifest.webmanifest`, { mode: "no-cors", cache: "no-store", signal: stop.signal });
+      return h.url;
+    } catch { if (!h.key || !Tunnel) throw new Error("not answering"); }
+    finally { clearTimeout(timer); }
+  }
+  if (!h.key || !Tunnel) throw new Error("not answering");
+  return `http://127.0.0.1:${(await Tunnel.open({ key: h.key })).port}`;
+}
+
+// Every host shows the whole network (user: no main host), so when the chosen one is down the next one opens instead:
+// the Deck's other nodes in the site order (the first one up serves the site), other hosts by last use. A pairing code
+// belongs to the host that made it, so pairing never fails over.
+async function open(h, pair) {
+  sessionStorage.setItem("chosen", "1"); // coming back (Settings → Hosts) shows the list instead of reopening
+  // A Deck's host falls back to the Deck's other hosts only; a host outside it, to any saved host
+  const inDeck = new Set((deck?.hosts || []).map((d) => d.url));
+  const same = (x) => !inDeck.has(h.url) || inDeck.has(x.url);
+  const rank = new Map((deck?.order || []).map((n, i) => [n, i]));
+  const by = (a, b) => (rank.has(a.name) && rank.has(b.name)) ? rank.get(a.name) - rank.get(b.name) : (b.used || 0) - (a.used || 0);
+  const tries = [h, ...(pair || !failover() ? [] : load().filter((x) => x.url !== h.url && same(x)).sort(by))];
+  const down = [];
+  for (const x of tries) {
+    $("msg").className = "";
+    $("msg").textContent = down.length ? `${down.join(", ")} not answering; trying ${x.name}…` : `Connecting to ${x.name}…`;
+    let url;
+    try { url = await reach(x); } catch { down.push(x.name); continue; }
+    const hosts = load();
+    for (const y of hosts) if (y.url === x.url) y.used = Date.now();
+    await save(hosts);
+    location.href = `${url}/${pair ? `#pair=${encodeURIComponent(pair)}` : ""}`;
+    return;
+  }
+  $("msg").className = "err";
+  $("msg").textContent = `No host is answering (${down.join(", ")}).`;
+}
+
+// The Deck (user: one entry, not a site per host): the name, addresses and iroh keys of its hosts, which the last host
+// opened left here (its page's carryDeck). Its hosts join the saved list (so they may load) and show as one row;
+// opening it tries the one used last, then the rest. A host saved by its iroh key alone (paired from a QR code) that
+// turns out to be one of them merges into its entry. Hosts outside it (another Deck) keep their own rows.
+let deck = null;
+async function loadDeck() {
+  try { deck = JSON.parse((await Fs.readFile({ path: "deck.json", directory: "DATA", encoding: "utf8" })).data); }
+  catch { deck = null; }
+  if (!deck?.hosts?.length) return;
+  await save(mergeDeck(load(), deck));
+}
+function mergeDeck(hosts, deck) {
+  for (const d of deck.hosts) {
+    const twin = d.key && hosts.find((x) => x.key === d.key && x.url !== d.url);
+    const used = twin ? twin.used || 0 : 0;
+    if (twin) hosts = hosts.filter((x) => x !== twin);
+    const mine = hosts.find((x) => x.url === d.url);
+    if (mine) { if (d.key) mine.key = d.key; mine.used = Math.max(mine.used || 0, used); }
+    else hosts.push({ name: d.name, url: d.url, ...(d.key ? { key: d.key } : {}), used });
+  }
+  return hosts;
+}
+function rows(hosts, deck) {
+  const mine = new Set((deck?.hosts || []).map((d) => d.url));
+  // The site's order (user 2026-10-26): the first node that answers serves the site, so try them in that order; a node
+  // never in the order (an older page's deck.json) falls back to last use.
+  const rank = new Map((deck?.order || []).map((n, i) => [n, i]));
+  const members = hosts.filter((x) => mine.has(x.url)).sort((a, b) =>
+    (rank.has(a.name) && rank.has(b.name)) ? rank.get(a.name) - rank.get(b.name) : (b.used || 0) - (a.used || 0));
+  const rest = hosts.filter((x) => !mine.has(x.url)).sort((a, b) => (b.used || 0) - (a.used || 0));
+  return [...(members.length ? [{ deck: true, name: deck.name || "deck", first: members[0], count: members.length,
+    members, used: members[0].used || 0 }] : []), ...rest].sort((a, b) => (b.used || 0) - (a.used || 0));
+}
+// The Deck's row, then each of its nodes in the site order (user: pick one when the first is up but you want another)
+function deckRows(d) {
+  const b = document.createElement("button");
+  b.className = "host";
+  b.innerHTML = "<b></b><small></small>";
+  b.querySelector("b").textContent = d.name;
+  b.querySelector("small").textContent = `${d.count} host${d.count > 1 ? "s" : ""}`;
+  b.onclick = () => open(d.first);
+  return [b, ...d.members.map((m, i) => {
+    const r = document.createElement("button");
+    r.className = "host member";
+    r.innerHTML = "<b></b><small></small>";
+    r.querySelector("b").textContent = `${i + 1}. ${m.name}`;
+    r.querySelector("small").textContent = m.url.startsWith("iroh:") ? "iroh" : new URL(m.url).hostname;
+    r.onclick = () => open(m);
+    return r;
+  })];
+}
+function render() {
+  const hosts = load();
+  const list = document.getElementById("list");
+  list.replaceChildren(...rows(hosts, deck).flatMap((h) => {
+    if (h.deck) return deckRows(h);
+    const b = document.createElement("button");
+    b.className = "host";
+    b.innerHTML = "<b></b><small></small><span class='x' role='button' aria-label='Remove'>✕</span>";
+    b.querySelector("b").textContent = h.name;
+    b.querySelector("small").textContent = h.key ? "iroh" : new URL(h.url).hostname;
+    b.onclick = (e) => {
+      if (e.target.classList.contains("x")) {
+        ask(`Remove ${h.name}?`, "Remove").then((yes) => { if (yes) { save(load().filter((x) => x.url !== h.url)); render(); } });
+        return;
+      }
+      open(h);
+    };
+    return b;
+  }));
+  $("msg").textContent = hosts.length ? "" : "On your PC open Deck → Settings → Devices → Pair a device, then scan its code here.";
+}
+
+// The list's own yes/no question (a styled dialog, not the system's confirm): resolves true or false.
+function ask(text, yes = "OK") {
+  $("asktext").textContent = text;
+  $("askyes").textContent = yes;
+  $("ask").showModal();
+  return new Promise((done) => {
+    const end = (v) => { $("ask").close(); done(v); };
+    $("askyes").onclick = () => end(true);
+    $("askno").onclick = () => end(false);
+    $("ask").oncancel = (e) => { e.preventDefault(); end(false); };
+  });
+}
+
+// A pairing link as a host shows it (https://<host>/#pair=CODE&iroh=KEY&name=NAME, or deck://pair?key=…&code=…):
+// {name, url, key, pair}, or null. The iroh key is what lets this phone reach the host with no Tailscale.
+function pairingLink(raw) {
+  let u;
+  try { u = new URL(raw.trim()); } catch { return null; }
+  const q = new URLSearchParams(u.protocol === "deck:" ? u.search : u.hash.slice(1));
+  const key = q.get(u.protocol === "deck:" ? "key" : "iroh"), pair = q.get(u.protocol === "deck:" ? "code" : "pair");
+  if (!pair) return null;
+  if (key) return { name: q.get("name") || "host", url: `iroh:${key}`, key, pair };
+  if (u.protocol !== "https:") return null;
+  return { name: nameOf(u.origin), url: u.origin, pair };
+}
+
+// Add a host this phone doesn't know yet (asks first: any page can send these links, and a saved host gets the app's
+// plugins), then open it, with its pairing code if it came with one. A host already saved under its key (or its
+// Deck's address) is opened as it is.
+async function addAndOpen(h, pair) {
+  const hosts = load();
+  const known = hosts.find((x) => x.url === h.url || (h.key && x.key === h.key));
+  if (!known) {
+    if (!(await ask(`Add ${h.name} to your hosts and open it?`, "Add"))) { render(); return; }
+    await save([...hosts, { name: h.name, url: h.url, ...(h.key ? { key: h.key } : {}), used: 0 }]);
+  }
+  render();
+  open(known || h, pair);
+}
+
+document.getElementById("addform").onsubmit = (e) => {
+  e.preventDefault();
+  const raw = document.getElementById("url").value.trim();
+  const link = pairingLink(raw);
+  if (link) { $("url").value = ""; addAndOpen(link, link.pair); return; }
+  try {
+    const url = new URL(/^https?:\/\//.test(raw) ? raw : `https://${raw}`).origin;
+    const hosts = load().filter((x) => x.url !== url);
+    hosts.push({ name: nameOf(url), url, used: 0 });
+    save(hosts);
+    document.getElementById("url").value = "";
+    render();
+  } catch { document.getElementById("msg").textContent = "That isn't a pairing link or an address."; }
+};
+
+// ---- scan a pairing code (the phone camera's own scanner opens the browser, which needs Tailscale to load it) ----
+let scanning = null;
+async function scan() {
+  $("scaninfo").textContent = "Point the camera at the pairing code on your PC (Settings → Devices).";
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); }
+  catch { $("msg").className = "err"; $("msg").textContent = "No camera: paste the pairing link in the box below instead."; return; }
+  $("scanview").hidden = false;
+  $("scanvideo").srcObject = stream;
+  await $("scanvideo").play().catch(() => {});
+  const me = scanning = { stream };
+  while (scanning === me) {
+    const text = readQr($("scanvideo"));
+    const link = text && pairingLink(text);
+    if (link) { stopScan(); addAndOpen(link, link.pair); return; }
+    if (text) $("scaninfo").textContent = "That code isn't a Deck pairing code.";
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
+// One frame's QR code, or null. jsQR (vendor/, Apache-2.0) ships in the app: Android's own BarcodeDetector needs a
+// Play Services download that may never come (none on phones without Google).
+const frame = document.createElement("canvas");
+function readQr(src) {
+  const w = src.videoWidth || src.naturalWidth || src.width, h = src.videoHeight || src.naturalHeight || src.height;
+  if (!w || !h) return null;
+  const k = Math.min(1, 800 / Math.max(w, h)); // enough pixels for a code across a PC screen, fast on a phone
+  frame.width = Math.round(w * k); frame.height = Math.round(h * k);
+  const g = frame.getContext("2d", { willReadFrequently: true });
+  g.drawImage(src, 0, 0, frame.width, frame.height);
+  return jsQR(g.getImageData(0, 0, frame.width, frame.height).data, frame.width, frame.height)?.data || null;
+}
+function stopScan() {
+  scanning?.stream.getTracks().forEach((t) => t.stop());
+  scanning = null;
+  $("scanview").hidden = true;
+}
+$("scanbtn").onclick = scan;
+$("scanstop").onclick = stopScan;
+if (!navigator.mediaDevices || typeof jsQR !== "function") document.getElementById("scanbtn").hidden = true;
+
+// ---- notes: this phone's copy, carried between hosts (each host's page trades it on open) ----
+// Read and edit here without any host; edits wait in a queue and are saved by the next host opened.
+const Fs = window.Capacitor?.Plugins?.Filesystem;
+const fsRead = async (path) => {
+  try { return (await Fs.readFile({ path, directory: "DATA", encoding: "utf8" })).data; } catch { return null; }
+};
+const fsWrite = (path, data) => Fs.writeFile({ path, data, directory: "DATA", encoding: "utf8", recursive: true });
+let copy = null, edits = [];
+const queued = (f) => edits.find((e) => e.path === f);
+
+function showNote() {
+  const f = $("notesfile").value, e = queued(f);
+  $("notestext").value = e ? e.text : copy?.files[f] ?? "";
+  const when = copy ? new Date(copy.at).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "";
+  $("notesinfo").className = e?.conflict ? "err" : "";
+  $("notesinfo").textContent = !copy ? "No notes yet: open a host once to get them."
+    : e?.conflict ? `This edit clashed with a newer change on a host. Check it and Save again to keep it.`
+    : `From ${copy.host}, ${when}${edits.length ? ` · ${edits.length} edit${edits.length > 1 ? "s" : ""} waiting for a host` : ""}`;
+}
+
+$("notesbtn").onclick = async () => {
+  copy = JSON.parse((await fsRead("notes/copy.json")) || "null");
+  edits = JSON.parse((await fsRead("notes/edits.json")) || "[]");
+  const list = Object.keys(copy?.files || {}).sort();
+  $("notesfile").replaceChildren(...list.map((f) => Object.assign(document.createElement("option"), { value: f, textContent: f })));
+  $("notesfile").value = list.includes("AGENTS.md") ? "AGENTS.md" : list[0] || "";
+  $("home").hidden = true; $("notesview").hidden = false;
+  showNote();
+};
+$("notesfile").onchange = showNote;
+$("notesback").onclick = () => { $("notesview").hidden = true; $("home").hidden = false; };
+$("notessave").onclick = async () => {
+  const path = $("notesfile").value, text = $("notestext").value;
+  if (!copy || !path) return;
+  edits = edits.filter((e) => e.path !== path);
+  if (text !== copy.files[path]) edits.push({ path, text, base: copy.head }); // base: what the edit was made on
+  await fsWrite("notes/edits.json", JSON.stringify(edits));
+  showNote();
+};
+if (!Fs) $("notesbtn").hidden = true;
+
+// Links handed over by MainActivity: a host's pairing QR (deck://pair → #add=KEY&name=NAME&pair=CODE, a host reached
+// by its iroh key) or a Deck page link (#open=https://<host>.ts.net[&pair=CODE]). A host not saved yet is added only
+// once the user agrees: any web page can send these links, and a saved host gets the app's plugins.
+function addFromHash() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (location.hash === "#hosts") { // Settings → More → Hosts on a host's page: the list, not the last host again
+    history.replaceState(null, "", location.pathname);
+    sessionStorage.setItem("chosen", "1");
+    return false;
+  }
+  if (!q.get("add") && !q.get("open")) return false;
+  history.replaceState(null, "", location.pathname);
+  let h;
+  if (q.get("add")) h = { name: q.get("name") || "host", url: `iroh:${q.get("add")}`, key: q.get("add") };
+  else {
+    try { const url = new URL(q.get("open")).origin; h = { name: nameOf(url), url }; } catch { return false; }
+  }
+  addAndOpen(h, q.get("pair"));
+  return true;
+}
+window.addEventListener("hashchange", addFromHash);
+
+(async () => {
+  // Developer builds may ship a hosts.json to start from (not committed).
+  try {
+    const seed = await (await fetch("hosts.json")).json();
+    const hosts = load();
+    for (const s of seed) if (!hosts.some((x) => x.url === s.url)) hosts.push({ name: s.name, url: s.url, used: 0 });
+    save(hosts);
+  } catch { /* no seed */ }
+  if (Fs) { await loadDeck(); await loadAppPrefs(); }
+  render();
+  if (addFromHash()) return;
+  // The app opens the Deck (its first node up) straight away; this list is Settings → More → Hosts on any host's page
+  // (user 2026-10-26: "the host screen on phone should be in settings")
+  if (sessionStorage.getItem("chosen")) return;
+  const d = rows(load(), deck).find((r) => r.deck), last = load().sort((a, b) => (b.used || 0) - (a.used || 0))[0];
+  if (d) open(d.first); else if (last?.used) open(last);
+})();
+</script>
+</body>
+</html>

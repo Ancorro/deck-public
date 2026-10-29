@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#1b1b1c"><!-- set to the look's background once it's applied (02-prefs.js applyLook) -->
+<title>deck</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" href="/static/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Fallback for the media-control symbols agents draw (⏵⏵ bypass permissions, ⏸ plan mode): most fonts lack them -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&text=%E2%8F%B4%E2%8F%B5%E2%8F%B6%E2%8F%B7%E2%8F%B8%E2%8F%B9%E2%8F%BA&display=swap">
+<!-- What the CDNs serve must match these hashes (a changed or tampered file doesn't load): classic files carry
+     theirs, modules get theirs from this map, every module noVNC and pdf.js import included. deploy/cdn-sri prints them
+     after a version change. TipTap (esm.sh, the Markdown editor) has none: esm.sh builds per browser. -->
+<script type="importmap">
+{
+  "integrity": {
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/rfb.js": "sha384-V7gKNqsm1e9rl3OTz4WzglGogw8s16KnfgmTeSQM9VprnC7hGdee5gsLxgaL1iux",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/util/int.js": "sha384-CwZS4SkfKzurejVCXsv2VwiIEoXB+rfCb3CBWxX97HOTVoEhEuMSk4bk1/0TbkzJ",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/util/logging.js": "sha384-PSW8HPLN8LP37Q6o3z3UgsYV7ECmNzqDgEtHHzel85rwcQqYG8/nmMsdY05lpAPA",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/util/strings.js": "sha384-P+maNGJWgcJ2cT8n12U88H/uETpRDcePMS+AqN1x/udOyNiz9piQlr0iA5lwq7b/",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/util/browser.js": "sha384-xemLnSITMx8GAcJLLSDBQF1hM4sD5iQhwyeRBaW1PjMriTQ3J0nB3BN4l7Qu4mTt",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/base64.js": "sha384-wnNRldeOdKDfLEpYtshEf96jNvFNA0aQUeeLtIe4jmDddk33Zh8stiG9zcZm3uuv",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/util/element.js": "sha384-ag/6L6ZuwwAQkafiaqeu9NBM/6JebtuWkN9T93TvwAEddiCJVs1bS+pmrC7sQIGC",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/util/events.js": "sha384-Xv9jJhnUB9mJ5zMbSVDVeP6qfIlQo+WlklMjMFh4YW5XKxmUWxCPzK1mfjcXuN2z",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/util/eventtarget.js": "sha384-c3/B/XnTaPOBdZeQ2QtPKCwaswqZ8jMZEcHNPhVmwPHrfIjmzQJkXw4rsTf/nFNH",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/display.js": "sha384-gzFH1NfOYPEc6LSxpKoOmEEaPJXohFLu++ihYOUGAnPBw6mha2v8e5L35rSvl61T",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/inflator.js": "sha384-ZGxOkgVXTSY/OAqtUz6cWUDo4EtHZDx3lWMEVXwpkrrh17onmVo40esQcQ2xHYxt",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/zlib/inflate.js": "sha384-b4OC1pwVOJUIvyWLN3qIXpKj5kVZs1lQvquQ35OAO7yqJfLetZlDShnsbKcbaSSk",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/utils/common.js": "sha384-G/Gr9pOmNszIbeMQVYIXnF/OSA3uXguaIqrCCr05iqgbGZi9Fh0/Sa1WbCQLjgbk",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/zlib/adler32.js": "sha384-vEAzZBXmlXEVmIg2MrayFS/P5WAyTEdvtlnELXHYLHDHglkkc+VEETNorq9kEzp7",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/zlib/crc32.js": "sha384-8aB+gaFx5AyeAFZsyugD7NfaJD/Kbm82r4K7vKFkN3p7P4Mk6AfFxxSRE5PGFKY3",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/zlib/inffast.js": "sha384-7lhzwHAf8vZFOb5cOqCHDQOU5+hDGr843bw4PHWbGghdpoScoFgbMJOb30xgBr3i",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/zlib/inftrees.js": "sha384-ZPrFvOxqijoEmvBDFI3fUZAUCGPUSwLEnXZuv1eQHSqrhGrlZqhv/YRd5aHQX13R",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/zlib/zstream.js": "sha384-yQJ6XHnKlzR6czOJHfIFUUKUs6c4wvc3MuJxvX8zQDkhgQQjT1JfsP+JUP2Ln8cT",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/deflator.js": "sha384-K17xKc24hWUaVVaHnVGXFAKwBYHHlZ3dxgQqrROpc20xb3DVl3uEWgfrx/vMNlXb",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/zlib/deflate.js": "sha384-Pll4AS1IOU1HePm5R6Zk+4sGfA8wWxardzIcJvi7+9//JvQ/DvkZTsOCELBDTlVs",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/zlib/trees.js": "sha384-Qcg1yDANNY2TnI2EQ9x0vmRWc0vEWxSA44W6KyYZ+9WQPAvZdoGjtVwaqlp2x7nn",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/vendor/pako/lib/zlib/messages.js": "sha384-EIlOW4mcj2svinxpku+8mu1NiFR7/gCtuQ3jJ9bLImgJC2ZZnL7pdkBGnygqD2cC",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/input/keyboard.js": "sha384-9nHEN+k1tzYFETQA1CTwmRy4/gUv/AayohTz/GnowyZNYj4r2450qVtc4lUsL0wa",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/input/util.js": "sha384-lB7Rf8IXDwJAs7XMlHlUrDP0I6n08aU52AKroe3qe1pEVXQErV+wgvURyfsunhPE",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/input/keysym.js": "sha384-bh0f8sdLtjZP25bD51JKOfuqxdom8Nef2W1sC4flhujLYnfYDGyg3naoUFxFFPJ7",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/input/keysymdef.js": "sha384-Hoj8979+wX+tON5SQQXk4kyIkBRR8R+vxhJIC6Tdy9XVvM9n4WFFsFEUeqpqlX/I",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/input/vkeys.js": "sha384-HV5BF3Se+EFGkPGxTsblU0ESPdhnr67IHMKb4E4+4CVP15U2r5LompwWhH97Zr36",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/input/fixedkeys.js": "sha384-+JUyB21c9EVQAkPb1dvtY2azR8gC65cmiusp+EOvHkryzK2u7/+bHpbvfsbg95hV",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/input/domkeytable.js": "sha384-Qugk4fZnVv9l0VYtZVamS/RMjkLhNrci3jnyKfyqF7B72jc224HSy5RclIT6rPzb",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/input/gesturehandler.js": "sha384-33m8Jk+Asx0fJ/GMV4WJF+wjLn9ZAGKuBW6GPw5Mpvh55TSEyfLem5YAHVbvHF7t",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/util/cursor.js": "sha384-3eDZrLoBmX8ZBTqblvNsasWdFKgREYY6a8V/x26AqkJ0hhU7/ImST+6UKvAqtV7g",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/websock.js": "sha384-94KRbrnNFb1Tp/zBeB0qxfOhTV+o/YY5mNHJqQSvB3aQOxPiMiaKALCTsEoSn4qU",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/input/xtscancodes.js": "sha384-8C5+v1/6e2ilSRx6lBFyojOWeRuwb55xjRmpBPEdCUlO9gksMANyNklK8jRtVxZO",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/encodings.js": "sha384-zpIlo/VphqBJvRbWI2e7RKZUDTpNHpMWQrmoDKtiVEWUU7VeCFi+hj+py7PtidTM",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/ra2.js": "sha384-vq5URuVQ9hPs9zCe2V1++m4pLQeI7tc9QSAbTA5Vn2j9WF5WWES8+905cXZMmBon",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/crypto/crypto.js": "sha384-g1TifhYgzyNfbtZwHjrSJpMVn4nT4VHUdvwtrNYEsMxmPW7NrXMqw3nyhdu4uLVo",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/crypto/aes.js": "sha384-Crw2BKhc97XbLptZtxwU8kH2VbKnBj1kpwh6cJ/OBRHiOWEgtfVBZA2ORrhtvm/U",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/crypto/des.js": "sha384-iqinAFM4a4xnH5nHbAJgoKCkXnOxr/gfwvv2/MtNHjb2dNkWawPkyGuYxlpErP3c",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/crypto/rsa.js": "sha384-P9PmDQ4D+BPxNt5lV31Q+0N7GLnQx/9xKFTnT4r1KTVv7MwhBRqDEPfACI9YqH28",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/crypto/bigint.js": "sha384-MaxGc4fHj+agCAh3pdbfaFfsDs4MKAFub8g/pIr7Bt/pztqioJonZfKXO4vWmSb7",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/crypto/dh.js": "sha384-oLJQaqgEp/rnajHYq6C97ps21ONaurs+dOX0AU67Yk7J90tsoWnKqrGh84J+FRDK",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/crypto/md5.js": "sha384-quZT1UykU1Pt95IineUZPOUqam38IvZeTa53O0Znl8TWJKlPo5Ka/7YJBzA62sn/",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/raw.js": "sha384-kcnJreB80OmKD6vlZtzRtbwuXdRI6Z6xv+1W44tVqyJrse9hrelUMSPiqqzWdsIe",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/copyrect.js": "sha384-SosGsTuiwC1NPYazMk94vF7fDJ4oBiIe6YItafHSt/8xXfkDtshElsfZtAZqK6Hi",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/rre.js": "sha384-FooinChcLse9qHc0wZNKld6E1mZuVeHEjYajr2TIUMF7Fs4DiLtMCrbCPaMDfKnq",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/hextile.js": "sha384-7YARNe609102pn/P2t2eiJeiZv5aiyzsAfd5APEBCQ6EiDnf9W3svRkdxqXKRFWI",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/zlib.js": "sha384-itOeqDCFAu2u8e+sxCLd4lJP6XIXgb2reeZp0Cw170WOEbHRas7gJCbDzL6M655R",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/tight.js": "sha384-xT1CPt06yZqKWTRe55549MwzErtz3hkJKTnZc3yZtOXzJhXtx9YCjCQ0uMCqSDN9",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/tightpng.js": "sha384-01RRCQPP0XXopZoc2NzTsnDTQrc1b/q8XCUljsgP06cXPQOiL7whZSzCakQF0Ui6",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/zrle.js": "sha384-rRVoF43wF222SvIGedenHOmoW8xz91SplwDRdheDGWkEnVWCMc9h4NBnCZdWwRJo",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/jpeg.js": "sha384-vJvknqFhrmuEZTLvz2JN89ry+9VWKYroL00lTAYY7RUBxtc+H9q1pzQ42C94eIde",
+    "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/decoders/h264.js": "sha384-C8z6GzdlWko44vJHT/XzZK1+C2oMjnqlMEZsYuLrKXKMH6fpB/my3FR9BhAG67R5",
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs": "sha384-+0ti2moQlmLN7WZHE2RHIf5lV8hHxhxEalN0il3YZceG26fUPyOkR0hp9daxk1i7"
+  }
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" integrity="sha384-8Xk9wy/gzEDUKrXtrmCFa2bBuK3BpjpDuL/p0SeKQX19Khl/M+lHOgD/CyYf7efP" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" integrity="sha384-5TcZemv2l/9On385z///+d7MSYlvIEw9FuZTIdZ14vJLqWphw7e7ZPuOiCHJcFCP" crossorigin="anonymous">
+<link rel="stylesheet" href="/static/style.css">
+<!-- PC layout (columns side by side) on any screen driven by a mouse, so one plain URL looks the same everywhere;
+     phones and tablets keep the one-column layout. ?pc forces it on, ?pc=0 off; either choice is remembered by this
+     browser. -->
+<script>(() => {
+  const q = new URLSearchParams(location.search);
+  let pc = !!window.__TAURI_INTERNALS__ || matchMedia("(pointer: fine)").matches;
+  try {
+    if (q.has("pc")) localStorage.setItem("deck-pc", q.get("pc") === "0" ? "0" : "1");
+    const saved = localStorage.getItem("deck-pc");
+    if (saved === "1") pc = true; else if (saved === "0") pc = false;
+  } catch { if (q.has("pc")) pc = q.get("pc") !== "0"; }
+  if (pc) document.documentElement.classList.add("pc");
+  // The saved theme and look before the first paint (the scripts that apply them load last). A page the phone app
+  // opens over iroh (http://127.0.0.1:<tunnel port>, a new origin with nothing saved) starts dark like the app's own
+  // list, so it doesn't flash light while it loads; window.Capacitor isn't there yet this early.
+  // Looks (Settings → Appearance → Look): each is a stylesheet in /static/looks/ over style.css, with its own fonts.
+  const LOOKS = {
+    pad: "https://fonts.googleapis.com/css2?family=Archivo:wght@400..700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap",
+    rack: "https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
+    blueprint: "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Roboto+Mono:wght@400;500;700&display=swap",
+    zine: "https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap",
+    plain: "",
+    message: "",
+  };
+  window.DECK_LOOKS = LOOKS;
+  let prefs = {};
+  try { prefs = JSON.parse(localStorage.getItem("deck-prefs") || "{}"); } catch { /* defaults */ }
+  try {
+    const tunnel = location.protocol === "http:" && location.hostname === "127.0.0.1" && !q.has("pc") && !matchMedia("(pointer: fine)").matches;
+    const t = prefs.theme || (tunnel ? "dark" : "system");
+    // System: the OS's choice, set here too (the sheet's default is dark: a light OS would flash dark before the script)
+    document.documentElement.dataset.theme = t === "light" || t === "paper" ? "light" : t === "dark" ? "dark"
+      : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  } catch { /* defaults */ }
+  const look = prefs.look in LOOKS ? prefs.look : "pad";
+  const v = document.querySelector('meta[name="deck-assets"]')?.content || "";
+  document.documentElement.dataset.look = look;
+  const sheet = document.createElement("link");
+  sheet.rel = "stylesheet"; sheet.id = "lookcss"; sheet.href = `/static/looks/${look}.css${v ? `?v=${v}` : ""}`;
+  document.head.append(sheet);
+  if (LOOKS[look]) {
+    const fonts = document.createElement("link");
+    fonts.rel = "stylesheet"; fonts.id = "lookfonts"; fonts.href = LOOKS[look];
+    document.head.append(fonts);
+  }
+})();</script>
+</head>
+<body>
+<!-- Brand marks from Simple Icons (CC0 data; trademarks of Anthropic and OpenAI); OpenClaw's crab drawn for Deck -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="logo-claude" viewBox="0 0 24 24"><path fill="currentColor" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></symbol>
+  <symbol id="logo-openclaw" viewBox="0 0 24 24"><g fill="currentColor"><ellipse cx="12" cy="14.2" rx="6.2" ry="4.3"/><path d="M3.6 3.2c-1.6 1-2.1 3.1-1.1 4.8.8 1.4 2.4 2 3.9 1.6l.9 2.6 1.4-.6-.9-2.6c1.2-.9 1.6-2.5 1-3.9L7 6.4l-.6-1.5 1.5-1.2C6.6 2.6 4.9 2.4 3.6 3.2z"/><path d="M20.4 3.2c1.6 1 2.1 3.1 1.1 4.8-.8 1.4-2.4 2-3.9 1.6l-.9 2.6-1.4-.6.9-2.6c-1.2-.9-1.6-2.5-1-3.9L17 6.4l.6-1.5-1.5-1.2c1.3-1.1 3-1.3 4.3-.5z"/><circle cx="9.6" cy="8.6" r="1.1"/><circle cx="14.4" cy="8.6" r="1.1"/></g><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M9.6 9.6v1.2M14.4 9.6v1.2M6.3 13.2 3 12.2M6 15.2l-3.3.6M6.8 17l-2.6 2.2M17.7 13.2l3.3-1M18 15.2l3.3.6M17.2 17l2.6 2.2"/></g></symbol>
+  <symbol id="logo-codex" viewBox="0 0 24 24"><path fill="currentColor" d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></symbol>
+</svg>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <button id="hostbtn" class="hostbtn" aria-label="Settings" title="Settings"><span id="hostname" class="deckname">…</span><span class="power"></span><span class="word">deck</span></button>
+      <nav class="tabbar" aria-label="Views">
+        <button data-view="term" class="on"><span class="tl">Terminal</span></button>
+        <button data-view="review" id="reviewtab"><span class="tl">Review</span></button>
+        <button data-view="web" id="webtab"><span class="tl">Web</span></button>
+        <button data-view="screen" id="screentab" hidden><span class="tl">Screen</span></button>
+      </nav>
+      <div id="pulse" class="lcd" hidden><span id="pulsetext">LINK…</span></div>
+      <!-- PC: saved layouts, one button each, and the button that saves or deletes them -->
+      <span id="layouts" class="layouts"></span>
+      <button id="layoutbtn" class="paneltoggle" aria-label="Layouts" title="Layouts: save this one, or delete one"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button>
+      <button id="togglefull" class="paneltoggle" aria-pressed="false" aria-label="Fullscreen" title="Fullscreen: no margins"><svg class="fsin" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><svg class="fsout" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
+      <button id="togglebottom" class="paneltoggle" aria-pressed="true" aria-label="Show keys and message box" title="Keys and message box"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15h18"/></svg></button>
+    </div>
+  </header>
+
+  <!-- Terminal: attached console with session chips -->
+  <!-- Desktop: drag to resize the Pad column and the right margin -->
+  <div class="colgrip" id="grippad" data-side="pad" role="separator" aria-orientation="vertical" aria-label="Resize Pad panel"></div>
+  <div class="colgrip" id="gripfeed" data-side="feed" role="separator" aria-orientation="vertical" aria-label="Resize right margin"></div>
+  <section id="view-term" class="view console" hidden>
+    <div class="termwrap">
+      <!-- The left column: the session tabs, then the Pad's keys. Shut, a strip of tab icons; open, their names and the
+           keys (beside the screen on a PC, over its edge on a phone) -->
+      <aside id="padcol" class="shut">
+        <button type="button" id="padhead" class="colhead" aria-label="Show or hide the tabs and the Pad"><svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <!-- The Scripts header (fold, +) over its scripts, as a host's header over its tabs, then the session tabs
+             (user: scripts above the hosts); style.css: the split -->
+        <div id="padbar"><button type="button" id="padfold" class="chfold" aria-label="Hide or show the scripts"><span class="chled"></span><span class="chname">Scripts</span><span class="fchev">›</span></button>
+          <button type="button" id="padadd" class="chnew" title="New script" aria-label="New script">+</button></div>
+        <div id="padslot"><div id="pad"></div></div>
+        <div id="chips" hidden></div>
+        <!-- Closed agent chats (05-tabs.js loadTabTrash): Restore starts one again on its conversation -->
+        <details id="tabtrash" hidden><summary></summary><div id="tabtrashlist"></div></details>
+      </aside>
+      <!-- Review view (PC): a document from the shelf beside the chat (app.js "Review") -->
+      <section id="docpane" hidden>
+        <div class="dochead">
+          <div id="doctabs"></div>
+          <button type="button" id="docnew" class="ghost small" title="A new document, on the shelf">+ New</button>
+          <button type="button" id="docnotes" class="ghost small" title="The machine notes (infra): open a file here">Notes</button>
+          <button type="button" id="docedit" class="ghost small" hidden>Edit</button>
+          <label id="docsend" class="ghost small" title="Tell the agent which documents are open here, with your next message"><input type="checkbox" id="docsendon"> Tell agent</label>
+          <span class="doczoom"><button type="button" id="doczoomout" class="ghost small" aria-label="Smaller">−</button><output id="doczoomval">100%</output><button type="button" id="doczoomin" class="ghost small" aria-label="Bigger">+</button></span>
+        </div>
+        <div id="docbody"></div>
+      </section>
+      <!-- Web view (PC): a web page beside the chat; while it's open, links clicked in Deck open here (app.js "Web") -->
+      <section id="webpane" hidden>
+        <form class="dochead" id="webform">
+          <input id="webaddr" placeholder="Address, or click a link in the chat" autocomplete="off" spellcheck="false" aria-label="Address">
+          <button type="button" id="webreload" class="ghost small" aria-label="Reload" title="Reload">↻</button>
+          <a id="webout" class="ghost small" target="_blank" rel="noopener noreferrer" title="Open in a browser tab" aria-label="Open in a browser tab">↗</a>
+        </form>
+        <div id="webbody"><p class="hint">Click a link in the chat, the shelf or the project bar, or type an address.</p></div>
+      </section>
+      <!-- The screen column: the agent's status line, the screen (terminal or chat), then the key row and the message
+           box under it (a chat takes them inside itself: 07-chat.js attachChat) -->
+      <div id="screencol">
+      <!-- Claude / Codex tabs: the agent's status line, cropped out of the terminal (06-terminal.js applyCrop) -->
+      <div id="agentbar" class="agentbar" hidden></div>
+      <div id="term"></div>
+      <div class="keybar">
+        <!-- Harness: Claude/Codex slash commands, in a small pop-up above the key row -->
+        <div id="harness" class="hpop" hidden>
+          <button data-cmd="/compact">Compact</button><button data-cmd="/resume">Resume</button>
+          <button data-cmd="/new" class="chatonly" hidden>New</button><button data-cmd="/model" class="chatonly" hidden>Model</button><button data-cmd="/effort" class="chatonly" hidden>Effort</button>
+          <button id="sampling" hidden>Sampling</button><button id="projectbtn">Project</button><button id="restartagent">Restart</button><button id="copytext">Copy text</button>
+          <button id="savesess">Save</button><button id="loadsess">Saves</button>
+          <button id="movesess" class="chatonly" hidden>Move host</button>
+        </div>
+        <div class="keys">
+          <button id="harnessbtn" data-q="harness" aria-expanded="false" aria-controls="harness">Harness</button>
+          <button data-k="esc" data-q="esc">Esc</button><button data-k="tab" data-q="tab">Tab</button><button data-k="stab" data-q="stab">⇧Tab</button>
+          <button data-k="ctrlc" data-q="ctrlc">^C</button><button data-k="up" data-q="up">↑</button><button data-k="down" data-q="down">↓</button>
+          <button data-k="left" data-q="left">←</button><button data-k="right" data-q="right">→</button><button data-k="enter" data-q="enter">⏎</button>
+          <span class="kright"></span><!-- pinned at the right: a chat's Working… and Stop, then + (02-prefs.js placeHarness) -->
+        </div>
+      </div>
+      <div id="selbar" class="selbar" hidden><span id="selcount">0 selected</span><button type="button" id="selsend">Send to Brain</button><button type="button" id="selcancel">Cancel</button></div>
+      <form id="say" class="composer">
+        <div class="msgside"><button type="button" id="upbtn" class="chatonly" hidden aria-label="Attach files" title="Attach files"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><input type="file" id="upfile" hidden multiple><button type="button" id="mic" aria-label="Dictate" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg></button></div>
+        <!-- The message box; shelf items attached to the next message sit in it, above the text (09-composer.js renderAttached) -->
+        <div class="msgfield">
+          <button type="button" id="msgshut" aria-pressed="false" aria-label="Collapse the message box" title="Collapse the message box"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div id="attach" hidden></div>
+          <textarea id="msg" rows="1" placeholder="Message or command…" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+          <!-- PC: a tool row inside the message box, as in Claude's web app; 02-prefs.js placeHarness moves Harness in on the
+               left and the mic and Send on the right. Model and Effort are for chats (the bridge's /model, /effort). -->
+          <div id="msgmenu" class="msgmenu" hidden></div>
+          <div class="msgbar">
+            <span class="mbl"><button type="button" data-cmd="/resume">Resume</button><button type="button" id="brainbtn" aria-expanded="false">Brain</button></span>
+            <span class="mbr"><button type="button" data-cmd="/mode" class="chatonly agyonly" hidden>Mode</button><button type="button" data-cmd="/model" class="chatonly" hidden>Model</button><button type="button" data-cmd="/effort" class="chatonly" hidden>Effort</button></span>
+          </div>
+        </div>
+        <button type="submit" aria-label="Send" title="Send"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+      </form>
+      </div>
+      <!-- Review: the divider between the chat and the reader (drag; double-click: half and half) -->
+      <div id="docgrip" role="separator" aria-orientation="vertical" aria-label="Resize chat and reader"></div>
+      <!-- The shelf: turns saved from a chat (10-shelf.js loadShelf), a column beside it -->
+      <aside id="shelf" class="shut" hidden>
+        <!-- As the left column: the collapse button on top (just its arrow; shut, the strip's name), then a row with the
+             shelf's name and Agents can read -->
+        <button type="button" id="shelfhead" class="colhead" aria-label="Collapse or expand the shelf"><span class="shelflabel">Shelf</span><svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <div id="shelfrow"><span class="shelfrowname">Shelf</span>
+          <button type="button" id="shelffile" class="ghost small" title="Add a PDF or text file">+ File</button>
+          <label id="shelfshare" title="Agents can read the shelf">Agents <input type="checkbox" id="shelfagents"></label></div>
+        <input type="file" id="docfile" hidden multiple
+          accept="application/pdf,text/*,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.txt,.md,.markdown,.csv,.tsv,.json,.log,.yaml,.yml,.toml,.xml,.html,.tex,.py,.js,.ts,.sh,.rs,.go,.java,.c,.h,.cpp">
+        <div id="shelflist"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Screen: host desktop over VNC (screen.js) -->
+  <section id="view-screen" class="view console" hidden>
+    <div class="screenbar">
+      <button id="screentoggle" class="primary">Stream</button>
+      <button id="screenzoom" class="ghost">Zoom</button>
+      <label class="screenctl"><input type="checkbox" id="screencontrol"> Control</label>
+      <label class="screenctl" id="screenphonectl" hidden><input type="checkbox" id="screenphone"> Phone</label>
+      <button id="screenwins" class="ghost" hidden>Windows</button>
+      <select id="screenhost" class="lcd" aria-label="Host whose desktop is shown" hidden></select>
+      <span id="screenstatus" class="lcd">OFF</span>
+    </div>
+    <div id="screen"><div id="screenvnc"></div></div>
+    <div id="screenkeys" class="keys">
+      <button data-sk="esc">Esc</button><button data-sk="tab">Tab</button><button data-sk="backspace">⌫</button><button data-sk="enter">⏎</button>
+    </div>
+    <form id="screensay" class="composer">
+      <input id="screentext" placeholder="Type on the desktop…" autocomplete="off">
+      <button type="submit" aria-label="Type"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+    </form>
+  </section>
+
+
+</div>
+
+<dialog id="wins">
+  <h2>Windows</h2>
+  <p class="hint">Tap one to put it on the phone screen. Tap it again to send it back.</p>
+  <div id="winlist"></div>
+  <div class="row"><span></span><button type="button" id="winsclose" class="ghost">Close</button></div>
+</dialog>
+
+<dialog id="settings">
+  <!-- One page; every control saves itself the moment it changes (no Save / Cancel). -->
+  <div class="sethead"><h2 id="settitle">Settings</h2><span id="setsaved" aria-live="polite"></span>
+    <button type="button" id="setclose" class="primary">Done</button></div>
+  <form id="setform">
+    <section class="setsec" data-sec="deck" data-hint="name, hosts, hosting">
+    <h3 class="setgroup">Deck</h3>
+    <!-- Name: the whole Deck's (syncs) -->
+    <div class="setname"><label>Name <input id="setalias" name="alias" maxlength="24" autocomplete="off"></label></div>
+    <small class="sethint setnamehint">the whole Deck's, on every host</small>
+    <!-- Hosts: each one's name and LED colour, set from any host (13-settings.js renderSwatches) -->
+    <label>Hosts</label>
+    <div id="sethosts" class="sethosts"></div>
+    <small class="sethint setnamehint">a name and colour for each host, shown in the tab column, everywhere</small>
+    <!-- Site order: the first node that is up serves the site and writes its state (deck/site.py, 13-settings.js renderOrder) -->
+    <label>Site order</label>
+    <div id="setorder" class="setorder"></div>
+    <small class="sethint setnamehint" id="setorderhint">the first one that is up serves the site; the others hold a copy</small>
+    </section>
+    <section class="setsec" data-sec="new" data-hint="folder, permissions, model, effort">
+    <h3 class="setgroup">New sessions</h3>
+    <label class="yolo"><input type="checkbox" name="agentpick"> Choose agent each time <small class="sethint">off: + starts Default agent; hold + to choose</small></label>
+    <label class="yolo effort" id="setagentwrap">Default agent<select name="agent" id="setagent"></select></label>
+    <label>Default folder <input name="folder" placeholder="~/work" autocomplete="off" autocapitalize="off"></label>
+    <label class="yolo"><input type="checkbox" name="yolo"> Skip permissions (YOLO) by default</label>
+    <label>Default model <small class="sethint">new sessions and restarts, every host; Model in a chat is that session only</small></label>
+    <label class="yolo effort">Claude<select name="model-claude"><option value="">Agent default</option><option>fable</option><option>opus</option><option>sonnet</option><option>haiku</option></select></label>
+    <label>Default effort <small class="sethint">new sessions and restarts; /effort in a chat overrides it</small></label>
+    <label class="yolo effort">Claude<select name="effort-claude"><option value="">Agent default</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></label>
+    <label class="yolo effort">Codex<select name="effort-codex"><option value="">Agent default</option><option>minimal</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option></select></label>
+    <label class="yolo effort">Pi<select name="effort-pi"><option value="">Agent default</option><option>off</option><option>minimal</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></label>
+    <label class="yolo effort">agy<select name="effort-agy"><option value="">Agent default</option><option>low</option><option>medium</option><option>high</option></select></label>
+    </section>
+    <section class="setsec" data-sec="chat" data-hint="tool calls, thinking, descriptions">
+    <h3 class="setgroup">Chat</h3>
+    <label class="yolo"><input type="checkbox" name="chattools"> Tool calls in chats <small class="sethint">off: only messages, no commands or edits</small></label>
+    <label class="yolo"><input type="checkbox" name="thinkopen"> Thinking expanded <small class="sethint">chats show the agent's thinking in full, no fold arrow; off: folded</small></label>
+    <label class="yolo"><input type="checkbox" name="chatjump"> Jump to newest replies <small class="sethint">back in a chat you left at the bottom; off: where you left it</small></label>
+    <label class="yolo"><input type="checkbox" name="describe"> Session descriptions <small class="sethint">a small model sums up each agent tab after every turn (right-click a tab)</small></label>
+    <label class="yolo effort">Described by<select name="describer"><option value="claude">Claude Haiku</option><option value="codex">OpenAI (Codex)</option></select></label>
+    </section>
+    <section class="setsec" data-sec="look" data-hint="theme, text size, quick keys">
+    <h3 class="setgroup">Appearance</h3>
+    <label>Look <small class="sethint">the whole page's style, with the theme below</small></label>
+    <div class="lookpick" role="radiogroup" aria-label="Look">
+      <label><input type="radio" name="look" value="pad"><span class="lookcard l-pad"><i aria-hidden="true"></i><b>Pad</b><small>the console: sessions as keys on a pad, displays set in a body</small></span></label>
+      <label><input type="radio" name="look" value="rack"><span class="lookcard l-rack"><i aria-hidden="true"></i><b>Rack</b><small>a channel strip: sessions across the top with LEDs and meters</small></span></label>
+      <label><input type="radio" name="look" value="blueprint"><span class="lookcard l-blueprint"><i aria-hidden="true"></i><b>Blueprint</b><small>a drafting sheet: grid paper, a parts list, a title block</small></span></label>
+      <label><input type="radio" name="look" value="zine"><span class="lookcard l-zine"><i aria-hidden="true"></i><b>Zine</b><small>cut and pasted: hard edges, hard shadows, marker and block type</small></span></label>
+      <label><input type="radio" name="look" value="plain"><span class="lookcard l-plain"><i aria-hidden="true"></i><b>Plain</b><small>one surface, ruled columns, the system's type</small></span></label>
+      <label><input type="radio" name="look" value="message"><span class="lookcard l-message"><i aria-hidden="true"></i><b>Message</b><small>a text thread: a conversation list, bubbles with tails, a pill to type in</small></span></label>
+    </div>
+    <label>Theme</label>
+    <div class="agentpick">
+      <label><input type="radio" name="theme" value="system"><span>System</span></label>
+      <label><input type="radio" name="theme" value="light"><span>Light</span></label>
+      <label><input type="radio" name="theme" value="dark"><span>Dark</span></label>
+    </div>
+    <label>Text size <small class="sethint">terminals and chats</small> <output id="setfontval"></output>
+      <input type="range" name="font" min="10" max="36" step="1"></label>
+    <label>Quick keys <small class="sethint">under terminals and chats; tap to show / hide</small></label>
+    <div id="setkeys" class="folderchips"></div>
+    </section>
+    <section class="setsec" data-sec="projects" data-hint="each project's main page">
+    <h3 class="setgroup">Projects</h3>
+    <!-- each project's main page (a pinned shelf link shown atop its chats): open it, or unset it (13-settings.js renderProjects) -->
+    <div id="setprojects" class="setprojects"></div>
+    </section>
+    <section class="setsec" data-sec="more" data-hint="devices, PCs, notes, guide, hosts, app">
+    <h3 class="setgroup">More</h3>
+    <nav id="setlinks">
+      <button type="button" id="devbtn">Devices <small>paired phones and PCs</small></button>
+      <button type="button" id="linkbtn">PCs <small>link PCs into one Deck</small></button>
+      <button type="button" id="notesbtn">Notes <small>machine notes</small></button>
+      <button type="button" id="guidebtn">Guide <small>how Deck works</small></button>
+      <button type="button" id="hostsbtn" hidden>Hosts <small>the phone app's host list: add, remove or open one</small></button>
+      <a id="apkbtn" href="/static/deck.apk" download="deck.apk">App <small>download the Android app</small></a>
+      <button type="button" id="appbtn" hidden>App <small>update the Android app: a download link for the phone's browser</small></button>
+    </nav>
+    </section>
+    <!-- Advanced: rare and PC-side settings, folded on phones (user: Settings had every switch in one list) -->
+    <details class="setsec" data-sec="advanced">
+    <summary class="setgroup">Advanced</summary>
+    <label class="yolo" id="setfailover" hidden><input type="checkbox" name="appfailover"> Open another host when this one is down <small class="sethint">the phone app, when the host you chose doesn't answer</small></label>
+    <label class="yolo"><input type="checkbox" name="hosting"> Host sessions on this PC <small class="sethint">off: client only, new sessions start on a linked PC</small></label>
+    <label class="yolo"><input type="checkbox" name="sessionagents"> Agents can see sessions <small class="sethint">list, read and message your other sessions, on every host</small></label>
+    <label class="yolo" id="setchat" style="display: none"><input type="checkbox" name="chat"> Chat view <small class="sethint">new agent sessions show as a chat, not a terminal; experimental</small></label>
+    <label class="yolo" id="setdurable" style="display: none"><input type="checkbox" name="pidurable"> Durable Pi <small class="sethint">crash-proof, on the Claude bridge; experimental</small></label>
+    <label class="yolo"><input type="checkbox" name="notesopen"> Infra changes expanded <small class="sethint">edits to the machine notes repo always show opened; off: folded like other tool calls</small></label>
+    <label class="yolo"><input type="checkbox" name="scripts"> Scripts <small class="sethint">the Scripts bar in the tab column; it also shows while any script exists</small></label>
+    <label class="yolo"><input type="checkbox" name="debug"> Debug view <small class="sethint">chats also show what Deck adds and hides: its instructions, stamps, reminders, hook output</small></label>
+    <label>Brain data <input name="brain" placeholder="github.com/you/second-brain" autocomplete="off" autocapitalize="off"></label>
+    <label class="yolo"><input type="checkbox" name="textterm"> Text terminal <small class="sethint">shows the session's text; steadier on Windows</small></label>
+    <label class="yolo"><input type="checkbox" name="composer"> Message box <small class="sethint">off: type into the terminal</small></label>
+    <label class="yolo"><input type="checkbox" name="crop"> Agent status bar <small class="sethint">crops the agent's footer</small></label>
+    <label class="yolo deskonly"><input type="checkbox" name="resize"> Resizable session pane <small class="sethint">drag its edges, terminal or chat</small></label>
+    <label>Shelf: new items go</label>
+    <div class="agentpick">
+      <label><input type="radio" name="shelfnew" value="bottom"><span>Bottom</span></label>
+      <label><input type="radio" name="shelfnew" value="top"><span>Top</span></label>
+    </div>
+    </details>
+    <p id="seterr" class="err"></p>
+  </form>
+</dialog>
+
+<!-- Pairing gate: shown to devices this Deck doesn't know yet -->
+<dialog id="pairgate">
+  <form id="pairform">
+    <h2>Pair this device</h2>
+    <div id="pairclaim" hidden>
+      <label>Device name <input id="pairname" maxlength="40" autocomplete="off"></label>
+      <p class="hint">Approve it on the device that showed the code.</p>
+      <!-- Phone camera scans open the browser; this hands the code to the Deck app instead (03-pairing.js pairFromHash) -->
+      <p id="pairapp" hidden><a class="primary" id="pairapplink">Pair the Deck app instead</a></p>
+      <div class="row"><span></span><button class="primary">Pair</button></div>
+    </div>
+    <p id="pairwait" class="hint" hidden>Waiting for approval on the device that showed the code…</p>
+    <p id="pairhelp" class="hint" hidden>This device isn't paired with this Deck yet. Scan a pairing code: on the host run <code>deck-pair</code>, or on a paired device open Settings → Devices → Pair a device.</p>
+    <p id="pairerr" class="err"></p>
+    <!-- Phone app: back to its host list, so one unpaired host can't trap you -->
+    <div id="pairleave" class="row" hidden><button type="button" class="ghost" id="pairleavebtn">Other hosts</button><span></span></div>
+  </form>
+</dialog>
+
+<!-- Devices: paired devices + making a pairing code -->
+<dialog id="devices">
+  <h2>Devices</h2>
+  <div id="devlist"></div>
+  <div id="pairbox" hidden>
+    <img id="pairqr" alt="Pairing code" width="220" height="220">
+    <p class="hint">Deck app: tap <b>Scan a pairing code</b>, no Tailscale needed. A browser: scan with its camera, or open: <a id="pairlink" href="#"></a><br>One use, 5 minutes.</p>
+    <p id="pairask" class="hint"></p>
+  </div>
+  <div class="row"><button type="button" id="pairnew" class="ghost">Pair a device</button><span></span><button type="button" id="devclose" class="primary">Close</button></div>
+</dialog>
+
+<!-- First open on a new install (this PC's own browser): host sessions here, or client only -->
+<!-- Phone app: the app can't save a download itself, so App makes a short-lived link for the phone's browser -->
+<dialog id="applink">
+  <h2>Update the app</h2>
+  <p>Open this link in the phone's browser (Chrome) within 10 minutes, then install the download over the app.</p>
+  <input id="applinkurl" readonly>
+  <p class="hint" id="applinkerr"></p>
+  <div class="row"><span></span><button type="button" id="applinkcopy" class="ghost">Copy</button><a id="applinkopen" class="primary" target="_blank" rel="noopener">Open in browser</a></div>
+</dialog>
+
+<dialog id="hostask">
+  <h2>Set up this PC</h2>
+  <p><b>Host sessions:</b> agents and terminals run on this PC, and your phone and other PCs can use them.</p>
+  <p><b>Client only:</b> this PC runs nothing itself; it shows and drives the sessions of PCs you link with it.</p>
+  <p class="hint">Change it any time: Settings → Host sessions on this PC.</p>
+  <div class="row"><span></span><button type="button" id="hostaskno" class="ghost">Client only</button><button type="button" id="hostaskyes" class="primary">Host sessions</button></div>
+</dialog>
+
+<!-- A script's output (04-pad.js showRun), live -->
+<dialog id="runout">
+  <div class="runhead"><h2 id="runtitle"></h2><span id="runstate"></span></div>
+  <pre id="runtext"></pre>
+  <div class="row"><button type="button" id="runstop" class="ghost">Stop</button><button type="button" id="runopen" class="ghost">Open in terminal</button><span></span><button type="button" id="runclose" class="primary">Close</button></div>
+</dialog>
+
+<!-- Linked PCs (deck/links.py): this PC makes a link code and approves, or pastes another PC's code -->
+<dialog id="links">
+  <h2>Linked PCs</h2>
+  <p class="hint">Linked PCs are one Deck: every PC's sessions show on each, and scripts, shelf and settings stay the same. A linked PC can run anything on the others: link only your own.</p>
+  <div id="linklist"></div>
+  <div id="linkbox" hidden>
+    <p class="hint">On the other PC: Settings → PCs → Link to a PC, and paste this. One use, 5 minutes.</p>
+    <input id="linkcode" readonly aria-label="Link code">
+    <p id="linkask" class="hint"></p>
+  </div>
+  <div id="joinbox" hidden>
+    <label>Link code from the other PC <input id="joincode" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    <p id="joinstate" class="hint"></p>
+    <div class="row"><span></span><button type="button" id="joingo" class="primary">Link</button></div>
+  </div>
+  <div class="row"><button type="button" id="linknew" class="ghost">Link a PC</button><button type="button" id="linkjoin" class="ghost">Link to a PC</button><span></span><button type="button" id="linkclose" class="primary">Close</button></div>
+</dialog>
+<dialog id="linkapprove">
+  <h2>Link a PC</h2>
+  <p id="linkapprovetext"></p>
+  <div class="row"><span></span><button type="button" id="linkdeny" class="ghost">Refuse</button><button type="button" id="linkallow" class="primary">Allow</button></div>
+</dialog>
+
+<!-- Pops up on the approving device when a scanned code is claimed -->
+<dialog id="pairapprove">
+  <h2>New device</h2>
+  <p id="pairapprovetext"></p>
+  <div class="row"><span></span><button type="button" id="pairdeny" class="ghost">Deny</button><button type="button" id="pairallow" class="primary">Allow</button></div>
+</dialog>
+
+<!-- Notes: the machine notes every Deck host keeps a synced copy of; read and edit them here -->
+<!-- Harness → Sampling (OpenCode sessions): its plan and build agents' sampling, saved on the session's host and
+     applied by deploy/agents/opencode-sampling.js from the next message -->
+<dialog id="sampdlg">
+  <form id="sampform">
+    <h2>Sampling</h2>
+    <p class="sethint">OpenCode on <span id="samphost"></span>, every session there. Blank is the model's default; models that don't take these skip them.</p>
+    <div class="samprow"><span></span><span>temp</span><span>top p</span><span>top k</span></div>
+    <div class="samprow"><span>Plan</span><input name="plan-temperature" inputmode="decimal" autocomplete="off"><input name="plan-top_p" inputmode="decimal" autocomplete="off"><input name="plan-top_k" inputmode="numeric" autocomplete="off"></div>
+    <div class="samprow"><span>Build</span><input name="build-temperature" inputmode="decimal" autocomplete="off"><input name="build-top_p" inputmode="decimal" autocomplete="off"><input name="build-top_k" inputmode="numeric" autocomplete="off"></div>
+    <p id="samperr" class="err"></p>
+    <div class="row"><span></span><button type="button" id="sampclose" class="ghost">Close</button></div>
+  </form>
+</dialog>
+
+<!-- Harness → Project: the project this session works in (its main page shows atop its chat), over its starting
+     folder's; agents set it themselves when they work in a repo (deck/sessions.py set_session_project) -->
+<dialog id="projdlg">
+  <form id="projform">
+    <h2>Project</h2>
+    <p class="sethint">A repo's folder, or a project's name. Its main page (a shelf link made main) shows atop the chat.</p>
+    <input name="project" list="projlist" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Project">
+    <datalist id="projlist"></datalist>
+    <p id="projerr" class="err"></p>
+    <div class="row"><button type="button" id="projreset" class="ghost">Starting folder's</button><button type="button" id="projclose" class="ghost">Close</button><button class="primary">Save</button></div>
+  </form>
+</dialog>
+
+<dialog id="notes">
+  <form id="notesform">
+    <h2>Notes</h2>
+    <p id="notessync" class="notessync"></p>
+    <select id="notesfile" aria-label="File"></select>
+    <textarea id="notestext" rows="16" spellcheck="false"></textarea>
+    <p class="sethint">Keep each note under 30 words. Saving commits here and pushes to the other hosts.</p>
+    <p id="noteserr" class="err"></p>
+    <div class="row"><button type="button" id="notesreview" class="ghost" title="Edit it in the Review reader">Open in Review</button><button type="button" id="notesclose" class="ghost">Close</button><button class="primary">Save</button></div>
+  </form>
+</dialog>
+
+<!-- Copy text: the terminal's output as plain text; touch scrolls the terminal itself, so selecting happens here -->
+<!-- Saved sessions: agents' handoff notes, kept on every Deck host (deck/saves.py). Load hands one to this session. -->
+<dialog id="saves">
+  <h2>Saves</h2>
+  <div id="savelist"></div>
+  <details id="savedeleted" hidden><summary></summary><div id="savedellist"></div>
+    <p class="hint">Deleted saves can be restored for two months, then they are removed.</p></details>
+  <div class="row"><span></span><button type="button" id="savesclose" class="primary">Close</button></div>
+</dialog>
+
+<!-- Move host (09-composer.js): this chat carries on on the host picked; its tab here closes into the trash -->
+<dialog id="movehost">
+  <h2>Move to host</h2>
+  <p class="sethint">The chat continues there on the same conversation, and is told it moved. This tab closes, so the
+    conversation runs in one place only; move it back to undo.</p>
+  <div id="movelist"></div>
+  <div class="row"><span></span><button type="button" id="moveclose" class="ghost">Cancel</button></div>
+</dialog>
+
+<!-- Move here (05-tabs.js askMoveHere): an offline host's chat carries on here from its copy -->
+<dialog id="descbox">
+  <h2 id="desctitle">Description</h2>
+  <p id="desctext" class="sethint"></p>
+  <div class="row"><span></span><button type="button" id="descx" class="ghost">Close</button></div>
+</dialog>
+
+<dialog id="offview">
+  <div class="runhead"><h2 id="offtitle"></h2><span id="offstate"></span></div>
+  <pre id="offtext"></pre>
+  <div class="row"><span></span><button type="button" id="offclose" class="ghost">Close</button>
+    <button type="button" id="offmove" class="primary">Transfer here</button></div>
+</dialog>
+
+<dialog id="movehere">
+  <h2>Move here</h2>
+  <p id="movehereq" class="sethint"></p>
+  <div class="row"><span></span><button type="button" id="moveherex" class="ghost">Cancel</button>
+    <button type="button" id="moveherego" class="primary">Move here</button></div>
+</dialog>
+
+<dialog id="copy">
+  <form method="dialog">
+    <h2>Copy text</h2>
+    <textarea id="copybody" rows="18" readonly spellcheck="false"></textarea>
+    <p class="sethint">Long-press to select a part, or copy it all.</p>
+    <div class="row"><span></span><button value="close" class="ghost">Close</button><button type="button" id="copyall" class="primary">Copy all</button></div>
+  </form>
+</dialog>
+
+<!-- Guide: small illustrated how-tos built from the real header / chip styles -->
+<dialog id="guide">
+  <h2>Guide</h2>
+  <section class="gstep">
+    <h3>One Deck, many hosts</h3>
+    <div class="gframes">
+      <div class="gframe"><div class="ghead"><span class="deckname">my-deck</span><span class="power"></span><span class="word">deck</span></div></div>
+    </div>
+    <p>Every host's sessions show in one tab list, under each host's name, so you stay on one page whichever host you opened. The name at the top is the whole Deck's (Settings → Deck → Name). Each host's LED has its own colour.</p>
+  </section>
+  <section class="gstep">
+    <h3>Close a tab</h3>
+    <div class="gframes">
+      <div class="gframe"><span class="chip on"><span class="cicon">✳</span>Claude</span><i class="gtap"></i></div>
+      <span class="garrow">→</span>
+      <div class="gframe"><span class="chip armed"><span class="cicon">✳</span>Claude</span><i class="gtap"></i></div>
+      <span class="garrow">→</span>
+      <div class="gframe"><span class="chip newchip">+</span></div>
+    </div>
+    <p>Tap the open tab once: it turns red. Tap it again within 3 seconds to close that session. Tap anything else to cancel.</p>
+  </section>
+  <section class="gstep">
+    <h3>Add a script key</h3>
+    <div class="gframes">
+      <div class="gframe"><span class="gkey">+</span><small>Add</small><i class="gtap"></i></div>
+      <span class="garrow">→</span>
+      <div class="gframe"><span class="gpill">✳ Agent</span><span class="gpill dim">›_ Shell</span></div>
+      <span class="garrow">→</span>
+      <div class="gframe"><span class="gkey lit">›_</span><small>Disk</small></div>
+    </div>
+    <p>Turn on Settings → Advanced → Scripts, then tap + on the Scripts bar at the top of the tab column. Describe the key and let an agent write and test the script, or pick Shell and type the command yourself. Tap the new key to run it; its time shows underneath while it runs.</p>
+  </section>
+  <section class="gstep">
+    <h3>Edit and move keys</h3>
+    <div class="gframes">
+      <div class="gframe"><span class="gkey">›_</span><small>hold</small><i class="gtap"></i></div>
+      <span class="garrow">→</span>
+      <div class="gframe"><span class="gkey lifted">›_</span><small>drag</small></div>
+    </div>
+    <p>Hold a key and let go to edit it. Hold, then drag to move it. On a PC, right-click a key for Run, Edit and Delete.</p>
+  </section>
+  <section class="gstep">
+    <h3>Harness</h3>
+    <div class="gframes">
+      <div class="gframe"><span class="gpill">Harness</span><i class="gtap"></i></div>
+      <span class="garrow">→</span>
+      <div class="gframe"><span class="gpill">Compact</span><span class="gpill">Resume</span><span class="gpill">Restart</span></div>
+    </div>
+    <p>Left of Esc in the key row (on a PC, in the message box). Compact and Resume type <code>/compact</code> and <code>/resume</code>. Restart relaunches the agent and continues the same conversation, picking up new settings or updates.</p>
+  </section>
+  <section class="gstep">
+    <h3>Agents messaging each other</h3>
+    <div class="gframes">
+      <div class="gframe"><div class="csent"><div class="cfrom">To <u>Fix CI</u></div><span>Do the tests pass?</span></div></div>
+      <span class="garrow">→</span>
+      <div class="gframe"><div class="cmsg user cpeer"><span>Do the tests pass?</span><div class="cfrom">From <u>Release notes</u></div></div></div>
+    </div>
+    <p>With Settings → Advanced → Agents can see sessions on, agents can message your other sessions. Such a message is outlined in both chats: To in the sender's, From in the other's. Tap the session's name to open it. The sender is whoever the agent says it is: Deck doesn't check.</p>
+  </section>
+  <div class="row"><span></span><button type="button" id="guideclose" class="primary">Got it</button></div>
+</dialog>
+
+<dialog id="newsess">
+  <h2>New session</h2>
+  <div id="newlist"></div>
+  <div class="row"><span></span><button type="button" id="newclose" class="ghost">Cancel</button></div>
+</dialog>
+
+<dialog id="ask">
+  <form id="askform">
+    <div class="askhead"><span id="askicon" class="askicon"></span><h2 id="asktitle">Ask Claude</h2></div>
+    <div id="askhostwrap" hidden>
+      <label>Build on</label>
+      <div id="askhosts" class="folderchips"></div>
+    </div>
+    <div id="askagent" class="agentpick">
+      <label><input type="radio" name="agent" value="claude" checked><span><svg class="logo"><use href="#logo-claude"/></svg> Claude</span></label>
+      <label><input type="radio" name="agent" value="codex"><span><svg class="logo"><use href="#logo-codex"/></svg> Codex</span></label>
+      <label id="askopencode"><input type="radio" name="agent" value="opencode"><span>▣ OpenCode</span></label>
+      <label id="askpi"><input type="radio" name="agent" value="pi"><span>π Pi</span></label>
+      <label id="askagy"><input type="radio" name="agent" value="agy"><span>◭ agy</span></label>
+    </div>
+    <textarea id="askprompt" rows="4" placeholder="What should it do?"></textarea>
+    <label class="yolo" id="askyolowrap"><input type="checkbox" id="askyolo"> Skip permissions (YOLO)</label>
+    <div id="askfolders">
+      <label>Folder</label>
+      <div id="folderchips" class="folderchips"></div>
+      <input id="askcwd" placeholder="~/work">
+    </div>
+    <p id="askerr" class="err"></p>
+    <div class="row">
+      <span></span>
+      <button type="button" id="askcancel" class="ghost">Cancel</button>
+      <button id="asksend" class="primary">Start</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="edit">
+  <form method="dialog" id="editform">
+    <h2 id="edittitle">New script</h2>
+    <button type="button" id="buildwith" class="buildwith"><span class="kicon"><svg class="logo"><use href="#logo-claude"/></svg></span><span><b>Or have an agent build it</b><small>describe what it should do; an agent on this host writes and tests the script</small></span></button>
+    <input type="hidden" name="id">
+    <label>Label <input name="label" required maxlength="40"></label>
+    <label>Runs as</label>
+    <div class="types">
+      <label><input type="radio" name="type" value="shell"><span>›_ Shell</span></label>
+      <label><input type="radio" name="type" value="claude"><span><svg class="logo"><use href="#logo-claude"/></svg> Claude</span></label>
+      <label><input type="radio" name="type" value="codex"><span><svg class="logo"><use href="#logo-codex"/></svg> Codex</span></label>
+      <label><input type="radio" name="type" value="opencode"><span>▣ OpenCode</span></label>
+      <label><input type="radio" name="type" value="pi"><span>π Pi</span></label>
+      <label><input type="radio" name="type" value="agy"><span>◭ agy</span></label>
+      <label><input type="radio" name="type" value="openclaw"><span>✺ OpenClaw</span></label>
+    </div>
+    <label><span id="textlabel">Command</span> <textarea name="text" rows="4"></textarea></label>
+    <label>Folder <input name="cwd" placeholder="~ (home)"></label>
+    <label>Run on <select name="host"></select></label>
+    <label class="yolo" id="edityolo"><input type="checkbox" name="yolo"> Skip permissions (YOLO)</label>
+    <p id="editerr" class="err"></p>
+    <div class="row">
+      <button type="button" id="del" class="ghost danger">Delete</button>
+      <button type="button" id="again" class="ghost">Run new</button>
+      <span></span>
+      <button value="cancel" formnovalidate class="ghost">Cancel</button>
+      <button id="save" value="save" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js" integrity="sha384-M169f14mRZOXm3hD/v2Ti0ThIT/RnAQagXA9nlE15yHAtrW19gdePJh/HaTzUOe/" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js" integrity="sha384-iF+jqbuti4XlB64clWgFWYEscb+UnSRv3VgVikGYZu+otNFnSHr7y7NcKfBnGizn" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.js" integrity="sha384-Zb/L38m4THfRbsxxv8gWAi8cQ6xcWQnv0BgR0qwbTDwtBDaPi6pkyfgfBIH6C8ZG" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js" integrity="sha384-cMkvdD8LoxVzGF/RPUKAcvmm49FQ0oxwDF3BGKtDXcEc+T1b2N+teh/OJfpU0jr6" crossorigin="anonymous"></script>
+<script src="/static/app.js"></script>
+<script type="module" src="/static/screen.js"></script>
+</body>
+</html>

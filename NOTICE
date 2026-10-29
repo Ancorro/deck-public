@@ -1,0 +1,14 @@
+Deck is MIT licensed (LICENSE). Some of what it uses or ships has its own license:
+
+Windows release zip (deck-<version>-windows.zip)
+- server/msys: programs from MSYS2 (bash, tmux, coreutils and the libraries they need), each under its own
+  license, among them the GNU GPL. Sources: https://github.com/msys2/MSYS2-packages and https://packages.msys2.org
+- uv.exe: uv by Astral, MIT or Apache-2.0. Source: https://github.com/astral-sh/uv
+- deck-iroh.exe: built from tunnel/ with iroh by n0 and other Rust crates, MIT or Apache-2.0 for the most part
+  (tunnel/Cargo.lock lists them all).
+
+Loaded by the page at run time (from public CDNs, not shipped here)
+- xterm.js (MIT), KaTeX (MIT), noVNC (MPL-2.0), pdf.js (Apache-2.0), mammoth.js (BSD-2-Clause), Tiptap (MIT).
+
+Installed by deploy/install.sh from their own sources: tmux, Python and aiohttp, Node.js, Claude Code, Codex, Pi
+and Rust, under their own licenses.

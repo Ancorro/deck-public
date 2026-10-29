@@ -1,0 +1,236 @@
+/* Plain: one surface. The columns are divided by lines, not boxes; the screen is the page. Type does the work: the
+   system's own face on a short scale (11, 12, 13, 15), weights 400 and 500, an 8-pixel rhythm, a reading measure for
+   prose. Colour is nearly absent: the host's LED marks the open tab and the Working dot, and that is all; buttons
+   that act are ink on paper. Nothing floats but a pop-up. */
+:root {
+  --bg: #141414; --frame: #141414; --frame-2: #1c1c1c; --frame-3: #262626;
+  --frame-text: #ececec; --frame-text-2: #9a9a9a; --frame-text-3: #6a6a6a; --frame-line: #ffffff14;
+  --pane: #141414; --pane-2: #1c1c1c; --pane-3: #0e0e0e;
+  --pane-text: #ececec; --pane-text-2: #9a9a9a; --pane-text-3: #6a6a6a; --pane-line: #ffffff14;
+  --ok: #4cc97a; --warn: #e0a640; --danger: #e5534b; --link: #8fb4ff;
+  --ink: var(--frame-text); --paper: var(--frame);
+  --r-s: 6px; --r-m: 8px; --r-l: 10px;
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Symbols 2", monospace;
+  --prose: var(--ui);
+  --label: 500 11px/1.2 var(--ui); --label-tracking: 0; --label-case: none;
+  --pop-shadow: 0 0 0 1px var(--frame-line), 0 8px 24px #0008;
+  --dialog-shadow: 0 0 0 1px var(--frame-line), 0 24px 60px #000a;
+  --chip-tint: 0%;
+  --gutter: 20px;
+}
+:root[data-theme=light] {
+  /* cream, not white (user: "make plain less white, more cream"); the greys warm to match */
+  --bg: #f7f1e3; --frame: #f7f1e3; --frame-2: #efe7d5; --frame-3: #e5dcc8;
+  --frame-text: #221e17; --frame-text-2: #6e6656; --frame-text-3: #9c937f; --frame-line: #3a2e1414;
+  --pane: #fbf6ea; --pane-2: #f2ead8; --pane-3: #ebe2cf;
+  --pane-text: #221e17; --pane-text-2: #6e6656; --pane-text-3: #9c937f; --pane-line: #3a2e1414;
+  --ok: #1f8f4e; --warn: #9a6400; --danger: #c9352b; --link: #1f5fd1;
+  --pop-shadow: 0 0 0 1px var(--frame-line), 0 8px 24px #00000014;
+  --dialog-shadow: 0 0 0 1px var(--frame-line), 0 24px 60px #0000001f;
+}
+body { font-size: 13px; line-height: 1.5; }
+/* header: a line under it; the name, the dot, the views */
+.top { padding: max(10px, env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--frame-line); }
+.brand { gap: 10px; }
+.hostbtn { gap: 8px; }
+.hostbtn .deckname { font: 500 13px var(--ui); }
+.hostbtn .word { display: none; }
+.power { width: 6px; height: 6px; box-shadow: none; }
+.tabbar { gap: 18px; margin-left: 18px; }
+.tabbar button { padding: 2px 0; font: 400 13px var(--ui); color: var(--frame-text-3); }
+.tabbar button.on { color: var(--frame-text); font-weight: 500; }
+.tabbar .tl { padding-bottom: 0; border-bottom: none; }
+.paneltoggle { width: 26px; height: 26px; }
+.lcd { padding: 3px 8px; border-radius: 4px; background: none; box-shadow: inset 0 0 0 1px var(--frame-line); color: var(--frame-text-2); font: 500 11px var(--ui); letter-spacing: 0; }
+.brand .chatstatus { font-size: 12px; }
+.brand .chatstatus button { padding: 3px 10px; border-radius: 4px; font: 500 12px var(--ui); color: var(--frame-text); box-shadow: inset 0 0 0 1px var(--frame-line); }
+/* the screen is the page: columns divided by lines */
+.termwrap { margin: 0; }
+@media (min-width: 1100px) { .termwrap { margin: 0; } #screencol > .keybar .keys, #screencol > .composer { padding-left: 16px; padding-right: 16px; } }
+#term { border-radius: 0; padding: 0; }
+#term:not(.chat) { padding: 12px 16px; }
+#padcol { border-radius: 0; margin: 0; background: var(--frame); box-shadow: inset -1px 0 0 var(--frame-line); cursor: default; }
+#padcol:not(.shut) { border-radius: 0; box-shadow: inset -1px 0 0 var(--frame-line), 16px 0 40px #0006; }
+@media (min-width: 1100px) { #padcol:not(.shut) { margin: 0; box-shadow: inset -1px 0 0 var(--frame-line); } #padcol { width: 40px; } }
+#shelf { border-radius: 0; margin: 0; box-shadow: inset 1px 0 0 var(--frame-line); }
+#shelf.shut { width: 28px; }
+@media (max-width: 700px) { #shelf:not(.shut) { box-shadow: inset 1px 0 0 var(--frame-line), -16px 0 40px #0006; } }
+#screen, #app.review :is(#docpane, #webpane):not([hidden]) { border-radius: 0; box-shadow: inset 1px 0 0 var(--frame-line); }
+#view-term:has(#term.chat) { padding: 0; }
+#view-term:has(#term.chat) :is(#padcol, #shelf) { margin: 0; }
+.console { padding-bottom: 0; }
+.colhead { height: 28px; color: var(--frame-text-3); }
+/* tabs: text rows; the open one carries a bar on the column's edge */
+#chips { padding: 8px 8px; gap: 2px; }
+#padcol.shut #chips { padding-left: 0; padding-right: 0; }
+.chip { min-height: 34px; padding: 6px 10px; border-radius: var(--r-s); font: 400 13px var(--ui); }
+.chip .cicon { width: 18px; font-size: 14px; }
+.chip.on { background: var(--wash-2); font-weight: 500; }
+#padcol.shut .chip.on { background: var(--wash-2); }
+.chip.remote::after { right: 6px; top: 6px; box-shadow: none; }
+.chiphost { padding: 14px 10px 4px; font: 500 11px var(--ui); color: var(--frame-text-3); }
+.chiphost .chled { width: 5px; height: 5px; }
+.chiphost .chnew, .chnew { height: 20px; min-width: 20px; padding: 0 4px; box-shadow: none; opacity: .5; font: 400 15px/1 var(--ui); }
+.chiphost .chnew:hover, .chnew:hover { opacity: 1; background: var(--wash); }
+.newchip { min-height: 28px; font: 400 15px/1 var(--ui); color: var(--frame-text-3); }
+#padbar { margin: 4px 8px 2px; padding: 6px 10px; background: none; font: 500 11px var(--ui); color: var(--frame-text-3); }
+#padbar .chled { border-left-color: var(--frame-text-3); }
+#padslot { margin: 0 8px; padding: 0 0 6px; background: none; border-radius: 0; }
+#padbar + #padslot:not(:has(.cell)) + #chips, #padslot + #chips { border-top: 1px solid var(--frame-line); }
+.key { min-height: 30px; padding: 0 10px; box-shadow: none; font: 400 12px var(--mono); }
+.key.lit { box-shadow: inset 0 0 0 1px var(--kc); }
+.key .kicon { width: 14px; height: 14px; border-radius: 3px; font-size: 9px; }
+.tabfolder .fname { font: 500 11px var(--ui); }
+.tabfolder .fcount { border-radius: 99px; font: 500 10px var(--ui); }
+#tabtrash { font: 400 12px var(--ui); }
+/* the chat: a transcript. The agent's words plain at a reading measure; yours in a thin frame. */
+#term.chat { font-size: calc(var(--chatfont, 14px) * 1.05); line-height: 1.6; --gutter: clamp(20px, 5%, 48px); }
+.chatlog { gap: 16px; padding-top: 24px; }
+.cmsg.agent > .cprose, .cprose { max-width: 68ch; }
+.cmsg.agent > .cprose { padding: 0; background: none; border-radius: 0; }
+.cmsg.agent { gap: 8px; }
+/* the user's own message on the right, set apart from the agent's (user: "the user messages look too similar to the agent on most themes, and not right justified") */
+.cmsg.user { align-self: flex-end; max-width: min(68ch, 85%); margin-top: 8px; padding: 10px 14px; border-radius: var(--r-m); background: var(--pane-2);
+  box-shadow: inset 0 0 0 1px var(--pane-line); color: var(--pane-text); }
+.cmsg.user:has(> .cts) { margin-bottom: 4px; }
+.cmsg.user > .cts { position: static; display: block; margin: 6px 0 0; text-align: right; font: 400 11px var(--ui); color: var(--pane-text-3); opacity: 1; }
+.cmsg.user.open .uacts, .cqueued .qacts { position: static; margin-top: 10px; justify-content: flex-end; }
+.cmsg.user.open { margin-bottom: 4px; }
+.cqueued { box-shadow: inset 0 0 0 1px var(--pane-line); background: none; color: var(--pane-text-3); }
+.cqueued.csending { color: var(--pane-text-2); }
+.cmsg.user.cpeer { border: none; box-shadow: inset 0 0 0 1px var(--pane-line); }
+.cmsg.user.cslash { box-shadow: none; font-weight: 400; font-family: var(--ui); font-size: 12px; margin: 0; }
+.csent { border-color: var(--pane-line); border-radius: var(--r-m); }
+.uacts button, .cqueued .qacts button { background: none; box-shadow: inset 0 0 0 1px var(--pane-line); font: 500 12px var(--ui); }
+.cprose pre, .ctool pre { background: var(--pane-2); border-radius: var(--r-s); }
+.cprose code { background: var(--pane-2); box-shadow: inset 0 0 0 1px var(--pane-line); }
+.cprose blockquote { border-left-color: var(--pane-text-3); }
+.cthink, .ctool { font-size: 12px; color: var(--pane-text-3); }
+.ctool summary, .cthink summary { font-family: var(--ui); }
+.ctool summary .carg { font-family: var(--mono); font-size: 11.5px; }
+.ctool b { color: var(--pane-text-2); font-weight: 500; }
+.cturn { margin: 0; padding: 0; border: none; background: none; text-align: right; font: 400 11px/1.4 var(--ui); color: var(--pane-text-3); }
+.cturn.shut { color: var(--pane-text-2); }
+.cturnacts { gap: 0 14px; margin: -6px 0 0; }
+.cturnacts button, .cturnacts .cts { padding: 0; font: 400 11px/1.4 var(--ui); color: var(--pane-text-3); }
+.cturnacts button:hover { color: var(--pane-text); }
+.cask, .cfailure { align-self: flex-start; width: 100%; max-width: 68ch; }
+.cask { padding: 14px; border-radius: var(--r-m); background: none; box-shadow: inset 0 0 0 1px var(--pane-line); }
+.cask button { padding: 6px 12px; border-radius: var(--r-s); background: var(--ink); color: var(--paper); font: 500 12px var(--ui); }
+.cask button[aria-pressed=false] { background: none; color: inherit; box-shadow: inset 0 0 0 1px var(--pane-text-3); }
+.cask button.cskip { box-shadow: inset 0 0 0 1px var(--pane-line); }
+.cask .cother { border-color: var(--pane-line); font-size: 13px; }
+.cfailure { background: none; border-radius: var(--r-m); }
+.cfailure button { background: var(--ink); color: var(--paper); font: 500 12px var(--ui); }
+.cnote { font-size: 12px; }
+.chatlog + .chatstatus :is(.chatspin, button) { border-radius: 99px; font: 400 12px var(--ui); }
+.chatstatus button { font: 500 12px var(--ui); }
+.agentbar { background: none; border-radius: 0; }
+.agentbar .fpart { font: 400 11px var(--ui); border: none; }
+.fpart.model { font-weight: 500; }
+.projbar { font: 12px var(--ui); }
+/* the shelf: rows, ruled */
+#shelf { font-size: 13px; }
+#shelfrow { padding: 6px 14px; }
+.shelfrowname { font: 500 11px var(--ui); }
+#shelflist { padding: 4px 14px; gap: 0; }
+.shelfitem { padding: 10px 0; border-radius: 0; background: none; border-bottom: 1px solid var(--pane-line); font-size: 13px; }
+.shelffolder > .shelfitem { background: none; border-left-color: var(--pane-line); }
+.shelfacts button, .shelfname { background: none; box-shadow: inset 0 0 0 1px var(--pane-line); font: 500 12px var(--ui); border-radius: var(--r-s); }
+.shelfkind { font: 500 10px var(--ui); border-radius: 4px; }
+.shelfmeta, .shelfmetafull { font-family: var(--ui); font-size: 11px; }
+.shelfmetafull { background: none; box-shadow: inset 0 0 0 1px var(--pane-line); }
+#shelffile { font: 500 11px var(--ui); }
+#shelfshare { font-size: 12px; }
+/* keys, the message box, Send */
+.keys { gap: 6px; padding: 8px 16px; }
+.keys button { min-width: 36px; padding: 6px 9px; border-radius: var(--r-s); background: none; box-shadow: inset 0 0 0 1px var(--c-line); font: 500 12px var(--mono); color: var(--c-text-2); }
+.keys button:hover { background: var(--wash); color: var(--c-text); }
+.keys button:active, .keys button[aria-expanded=true] { background: var(--wash-2); color: var(--c-text); }
+#term.chat .keys { border-top: 1px solid var(--pane-line); padding: 8px 16px 4px; }
+.composer { padding: 6px 16px 14px; gap: 10px; }
+#term.chat .composer { padding: 6px 16px 14px; border-top: none; }
+@media (min-width: 1100px) { #say, #term.chat #say { padding: 0 var(--gutter) 16px; } }
+.msgfield { border-radius: var(--r-l); background: none; box-shadow: inset 0 0 0 1px var(--c-line); }
+#term.chat .msgfield { background: none; }
+.msgfield:focus-within { box-shadow: inset 0 0 0 1px var(--c-text-3); }
+#msg { font: 400 14px/1.5 var(--ui); padding: 10px 14px; }
+#msg::placeholder { color: var(--c-text-3); }
+.composer button[type=submit] { width: 34px; height: 34px; border-radius: 99px; background: var(--ink); color: var(--paper); }
+.composer button[type=submit] svg { width: 16px; height: 16px; }
+.composer #mic, .composer #upbtn { width: 30px; height: 30px; border-radius: 99px; background: none; color: var(--c-text-2); box-shadow: inset 0 0 0 1px var(--c-line); }
+@media (min-width: 1100px) {
+  #say .msgfield { padding: 4px 10px 8px; }
+  #say .msgbar { gap: 4px; }
+  #say .msgbar button { height: 24px; padding: 0 8px; border-radius: 4px; background: none; box-shadow: none; font: 400 12px var(--ui); color: var(--c-text-2); }
+  #say .msgbar button:hover, #say .msgbar button[aria-expanded=true] { background: var(--wash); color: var(--c-text); }
+  #say .msgbar :is(#mic, #upbtn) { box-shadow: none; }
+  #say .msgbar button[type=submit] { width: 26px; height: 26px; border-radius: 99px; background: var(--ink); color: var(--paper); margin-left: 4px; }
+  #say .msgbar button[type=submit] svg { width: 14px; height: 14px; }
+  #say.shut .msgbar button[type=submit] { border-radius: 99px; width: 30px; height: 30px; align-self: center; }
+  #say #msgshut { right: 12px; }
+}
+.hpop, .msgmenu { padding: 4px; border-radius: var(--r-m); }
+.hpop button, .msgmenu button { padding: 6px 10px; border-radius: var(--r-s); font: 400 13px var(--ui); }
+.msgmenu .mmtitle { font: 500 11px var(--ui); }
+.msgmenu .mmnote { font: 400 12px var(--ui); }
+.att { border-radius: var(--r-s); background: none; box-shadow: inset 0 0 0 1px var(--c-line); }
+.atttoggle { font-size: 12px; }
+/* the reader */
+.dochead { background: none; box-shadow: inset 0 -1px 0 var(--pane-line); min-height: 36px; }
+.doctab { height: 30px; border-radius: var(--r-s) var(--r-s) 0 0; }
+.doctab.on::before, .doctab.on::after { display: none; }
+.doctab.on { box-shadow: inset 0 -2px 0 var(--frame-text); background: none; }
+.doctabname { font: 400 12px var(--ui); }
+.richtools { border-radius: var(--r-m); background: none; box-shadow: inset 0 0 0 1px var(--pane-line); }
+.richpage { box-shadow: inset 0 0 0 1px var(--pane-line); background: var(--pane); }
+/* dialogs and controls: a sheet with a line round it; ink buttons */
+dialog { padding: 24px; border-radius: 12px; }
+dialog h2 { margin-bottom: 18px; font: 500 15px var(--ui); }
+dialog label { margin-bottom: 16px; font: 500 12px var(--ui); color: var(--frame-text-2); }
+dialog input:not([type=radio]):not([type=checkbox]):not([type=range]):not([type=color]), dialog textarea, dialog select, #askprompt, #askcwd, #screentext, #webaddr {
+  padding: 9px 12px; border-radius: var(--r-m); background: none; box-shadow: inset 0 0 0 1px var(--frame-line); font-size: 13px; color: var(--frame-text); }
+dialog input:focus, dialog textarea:focus, dialog select:focus, #askprompt:focus, #askcwd:focus { box-shadow: inset 0 0 0 1px var(--frame-text-3); }
+dialog select { padding: 5px 8px; font: 500 12px var(--ui); }
+.ghost, .primary { padding: 7px 12px; border-radius: var(--r-s); font: 500 12px var(--ui); }
+.ghost { box-shadow: inset 0 0 0 1px var(--frame-line); color: var(--frame-text); }
+.primary { background: var(--ink); color: var(--paper); }
+.primary:hover { filter: none; background: var(--frame-text-2); }
+.row { gap: 8px; }
+.agentpick, .types { gap: 6px; }
+.agentpick span, .types span, .fchip { padding: 8px 6px; border-radius: var(--r-s); font: 400 12px var(--ui); box-shadow: inset 0 0 0 1px var(--frame-line); }
+.agentpick input:checked + span, .types input:checked + span, .fchip.on { background: var(--ink); color: var(--paper); font-weight: 500; }
+.fchip { font-family: var(--mono); font-size: 11px; }
+.lookcard { border-radius: var(--r-m); }
+.lookpick input:checked + .lookcard { box-shadow: inset 0 0 0 1px var(--frame-text); }
+.lookcard b { font: 500 13px var(--ui); }
+.lookcard small { font-size: 11px; }
+.askicon { width: 28px; height: 28px; border-radius: var(--r-s); background: var(--frame-2); color: var(--frame-text); font-size: 14px; }
+.buildwith { border-radius: var(--r-m); }
+.buildwith b { font-weight: 500; }
+.hostrow { padding: 11px 12px; margin-bottom: 6px; border-radius: var(--r-m); background: none; box-shadow: inset 0 0 0 1px var(--frame-line); }
+button.hostrow:hover { background: var(--wash); }
+.hostrow b { font-weight: 500; }
+.hostrow span { font: 400 12px var(--ui); }
+.hostrow em { font: 500 11px var(--ui); color: var(--frame-text-3); }
+.sethead { padding: 20px 24px 12px; margin: 0 -24px 4px; }
+.setgroup { margin: 28px 0 8px; padding-top: 20px; font: 500 13px var(--ui); color: var(--frame-text); }
+#settings label.yolo { padding: 10px 0; font: 400 13px var(--ui); }
+#settings label.yolo input[type=checkbox] { width: 32px; height: 18px; border-radius: 9px; background: var(--frame-3); }
+#settings label.yolo input[type=checkbox]::after { top: 2px; left: 2px; width: 14px; height: 14px; background: var(--frame-text-2); }
+#settings label.yolo input[type=checkbox]:checked { background: var(--ink); }
+#settings label.yolo input[type=checkbox]:checked::after { transform: translateX(14px); background: var(--paper); }
+.sethint { font-size: 11px; }
+#setlinks > * { padding: 11px 0; font: 500 13px var(--ui); }
+#setlinks small { font: 400 11px var(--ui); }
+@media (max-width: 1099px) { .setsec { padding: 6px 16px 10px; border-radius: var(--r-m); background: none; box-shadow: inset 0 0 0 1px var(--frame-line); } #setform .setgroup { font-size: 13px; } }
+.gframe { border-radius: var(--r-m); background: none; box-shadow: inset 0 0 0 1px var(--frame-line); }
+.gkey, .gpill { border-radius: var(--r-s); background: none; box-shadow: inset 0 0 0 1px var(--frame-line); font-family: var(--ui); }
+.gstep h3 { font: 500 11px var(--ui); }
+.gstep p { font-size: 12px; }
+#runtext, #offtext { border-radius: var(--r-m); box-shadow: inset 0 0 0 1px var(--frame-line); }
+#runstate, #offstate, #setsaved { font: 400 11px var(--ui); }
+.toast { padding: 8px 12px; border-radius: var(--r-m); font: 500 12px/1.4 var(--ui); }
+.err, .hint { font-size: 12px; }
+.screenctl { font: 500 12px var(--ui); }
