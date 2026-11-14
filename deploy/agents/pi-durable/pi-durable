@@ -1,0 +1,7 @@
+#!/bin/sh
+# Durable pi on the Claude bridge (deploy/agents/pi-durable, experimental). Takes pi's arguments: --continue,
+# --append-system-prompt TEXT, a first message.
+basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+node=node
+[ -x "$HOME/.pi/durable-node/bin/node" ] && node="$HOME/.pi/durable-node/bin/node"   # setup.py: system Node lacks TypeScript
+exec "$node" --disable-warning=ExperimentalWarning "$basedir/pi-durable.mjs" "$@"

@@ -1,0 +1,9 @@
+{
+  "name": "Deck",
+  "short_name": "Deck",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1b1b1c",
+  "theme_color": "#1b1b1c",
+  "icons": [{ "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

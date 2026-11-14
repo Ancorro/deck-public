@@ -1,0 +1,19 @@
+# Lint settings for the Python side (deck/, deploy/, tests/): `ruff check .` (tests/run.sh lint runs it).
+line-length = 130
+extend-include = ["deploy/update-all", "deploy/cdn-sri"]  # Python scripts without the extension
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "B", "UP", "SIM", "I", "RUF100"]
+ignore = [
+    "E731",  # lambdas assigned to names: short local helpers read better than a def
+    "E741",  # l, I, O as names: `l` is a line throughout the terminal code
+    "SIM105",  # try/except/pass instead of contextlib.suppress: the plain form is clearer in this code
+    "B905",  # zip without strict=: the pairs here are built to match
+    "SIM115",  # open() without a with: log files held open on purpose
+    "SIM112",  # ProgramFiles, SystemRoot: Windows spells its variables this way
+]
+
+[lint.per-file-ignores]
+"deck/chat_bridge.py" = ["E402"]  # the checkout goes on sys.path before the package imports
+"tests/*.py" = ["E501"]  # fixtures hold long sample lines of agent output
