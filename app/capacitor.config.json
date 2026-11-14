@@ -1,0 +1,12 @@
+{
+  "appId": "dev.deck.app",
+  "appName": "___ deck",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": ["*.ts.net", "*.*.ts.net", "127.0.0.1", "localhost"]
+  },
+  "android": {
+    "backgroundColor": "#1b1b1c"
+  }
+}

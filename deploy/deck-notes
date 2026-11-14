@@ -1,0 +1,3 @@
+#!/bin/sh
+# Sync machine notes with the other Deck hosts (see deck/notes.py). Installed as a link into the checkout's deploy/.
+PYTHONPATH="$(dirname "$(dirname "$(readlink -f "$0")")")" exec python3 -m deck.notes "$@"

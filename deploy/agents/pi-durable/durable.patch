@@ -1,0 +1,133 @@
+diff --git a/packages/coding-agent/src/experimental/durable/harness-setup.ts b/packages/coding-agent/src/experimental/durable/harness-setup.ts
+index 4d6a4be..adba8f4 100644
+--- a/packages/coding-agent/src/experimental/durable/harness-setup.ts
++++ b/packages/coding-agent/src/experimental/durable/harness-setup.ts
+@@ -49,10 +49,14 @@ export function createHarnessSettings(settingsManager: SettingsManager): Harness
+ }
+ 
+ /** A registry with pi's coding tools and system prompt. */
+-export function createCodingRegistry(settingsManager: SettingsManager, cwd: string): Registry {
++export function createCodingRegistry(
++	settingsManager: SettingsManager,
++	cwd: string,
++	appendSystemPrompt?: string,
++): Registry {
+ 	const registry = createRegistry();
+ 	registry.install(CodingTools);
+-	registry.install(createPiPrompt(settingsManager, cwd));
++	registry.install(createPiPrompt(settingsManager, cwd, appendSystemPrompt));
+ 	return registry;
+ }
+ 
+diff --git a/packages/coding-agent/src/experimental/durable/prompt.ts b/packages/coding-agent/src/experimental/durable/prompt.ts
+index 8e2f5d5..06bb852 100644
+--- a/packages/coding-agent/src/experimental/durable/prompt.ts
++++ b/packages/coding-agent/src/experimental/durable/prompt.ts
+@@ -17,26 +17,34 @@ const CONTRIBUTIONS = {
+ };
+ 
+ /** pi's section order; `buildSystemPromptSections()` omits the ones without content. */
+-const KEYS = ["preamble", "tools", "rules", "docs", "project_context", "skills", "cwd"] as const;
++const KEYS = ["preamble", "tools", "rules", "docs", "addendum", "project_context", "skills", "cwd"] as const;
++
++export interface PromptResources {
++	readonly contextFiles: { path: string; content: string }[];
++	readonly skills: Skill[];
++}
++
++const resources = new Map<string, PromptResources>();
++
++/** Context files and skills of a directory, loaded once per process like pi at startup. */
++export function loadPromptResources(settings: SettingsManager, cwd: string): PromptResources {
++	let found = resources.get(cwd);
++	if (found === undefined) {
++		const agentDir = getAgentDir();
++		found = {
++			contextFiles: loadProjectContextFiles({ cwd, agentDir }),
++			skills: loadSkills({ cwd, agentDir, skillPaths: settings.getSkillPaths(), includeDefaults: true }).skills,
++		};
++		resources.set(cwd, found);
++	}
++	return found;
++}
+ 
+ /**
+  * pi's system prompt as one extension: the sections of `buildSystemPromptSections()` for the request's tools and the
+- * conversation's directory. Context files and skills load once per directory, like pi at startup.
++ * conversation's directory, with `appendSystemPrompt` as pi's `--append-system-prompt`.
+  */
+-export function createPiPrompt(settings: SettingsManager, fallbackCwd: string) {
+-	const resources = new Map<string, { contextFiles: { path: string; content: string }[]; skills: Skill[] }>();
+-	const load = (cwd: string) => {
+-		let found = resources.get(cwd);
+-		if (found === undefined) {
+-			const agentDir = getAgentDir();
+-			found = {
+-				contextFiles: loadProjectContextFiles({ cwd, agentDir }),
+-				skills: loadSkills({ cwd, agentDir, skillPaths: settings.getSkillPaths(), includeDefaults: true }).skills,
+-			};
+-			resources.set(cwd, found);
+-		}
+-		return found;
+-	};
++export function createPiPrompt(settings: SettingsManager, fallbackCwd: string, appendSystemPrompt?: string) {
+ 	// The sections of one request render from one build.
+ 	const built = new WeakMap<PromptInput, Record<string, string>>();
+ 	const build = (input: PromptInput): Record<string, string> => {
+@@ -63,7 +71,8 @@ export function createPiPrompt(settings: SettingsManager, fallbackCwd: string) {
+ 			selectedTools,
+ 			toolSnippets: snippets,
+ 			toolGuidelines: guidelines,
+-			...load(cwd),
++			appendSystemPrompt,
++			...loadPromptResources(settings, cwd),
+ 		});
+ 	};
+ 	return defineExtension({
+diff --git a/packages/coding-agent/src/experimental/durable/runtime.ts b/packages/coding-agent/src/experimental/durable/runtime.ts
+index fcd6e52..97821d7 100644
+--- a/packages/coding-agent/src/experimental/durable/runtime.ts
++++ b/packages/coding-agent/src/experimental/durable/runtime.ts
+@@ -1,3 +1,4 @@
++import { rm } from "node:fs/promises";
+ import type { AttachedReplicatedState } from "@earendil-works/chord";
+ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+ import { clampThinkingLevel, getSupportedThinkingLevels, type ModelThinkingLevel } from "@earendil-works/pi-ai";
+@@ -81,6 +82,17 @@ export interface DurableController {
+ export interface OpenDurableOptions {
+ 	readonly cwd?: string;
+ 	readonly continueSession?: boolean;
++	/** pi's `--append-system-prompt`. */
++	readonly appendSystemPrompt?: string;
++	/** Runs before the Harness opens and the initial model is chosen, e.g. to register extension providers. */
++	readonly setup?: (host: DurableHost) => Promise<void>;
++}
++
++/** What `OpenDurableOptions.setup` may extend. */
++export interface DurableHost {
++	readonly cwd: string;
++	readonly modelRuntime: ModelRuntime;
++	readonly settingsManager: SettingsManager;
+ }
+ 
+ export interface OpenDurableResult {
+@@ -130,8 +142,9 @@ export async function openDurable(options: OpenDurableOptions = {}): Promise<Ope
+ 		const settingsManager = SettingsManager.create(location.cwd);
+ 		configureHarnessHttp(settingsManager);
+ 		const settings = createHarnessSettings(settingsManager);
+-		const registry = createCodingRegistry(settingsManager, location.cwd);
++		const registry = createCodingRegistry(settingsManager, location.cwd, options.appendSystemPrompt);
+ 		registry.install(Subagent);
++		await options.setup?.({ cwd: location.cwd, modelRuntime, settingsManager });
+ 
+ 		const pendingReports: unknown[] = [];
+ 		let report: (error: unknown) => void = (error) => pendingReports.push(error);
+@@ -362,6 +375,8 @@ export async function openDurable(options: OpenDurableOptions = {}): Promise<Ope
+ 	} catch (error) {
+ 		await harness?.close(context).catch(() => {});
+ 		await location.release().catch(() => {});
++		// A new session that failed to open holds nothing; left behind, `--continue` would pick it.
++		if (location.created) await rm(location.directory, { recursive: true, force: true }).catch(() => {});
+ 		throw error;
+ 	}
+ }

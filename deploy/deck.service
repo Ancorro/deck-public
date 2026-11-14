@@ -1,0 +1,17 @@
+[Unit]
+Description=Deck (phone button/terminal app)
+After=network-online.target
+
+[Service]
+# install.sh points this at the checkout it runs from; %h/deck is the default for a hand install.
+WorkingDirectory=%h/deck
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Per-host settings (DECK_HOST_NAME, DECK_ORIGINS), written by deploy/install.sh.
+EnvironmentFile=-%h/.config/deck/env
+ExecStart=/usr/bin/python3 -m deck.server
+Restart=on-failure
+# The tmux server is forked from here; only kill python on restart so runs survive.
+KillMode=process
+
+[Install]
+WantedBy=default.target

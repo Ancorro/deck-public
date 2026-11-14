@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""Integrity hashes for the libraries the page loads from CDNs (deck/static/index.html, app/*.js, screen.js). Run it after
+changing a library's version and paste what it prints over the old hashes:
+
+    deploy/cdn-sri                  # every CDN URL the page names: classic files, then the import map
+
+A classic file (a <script src> or stylesheet) gets one sha384. A module gets one for itself and for every module it
+imports, followed through relative imports, since the import map must list each URL the browser fetches. TipTap
+(esm.sh) is left out: esm.sh builds per browser, so a fixed hash would break.
+
+The Code view's editor (CodeMirror 6, deck/static/app/12-code.js) imports by bare package names (@codemirror/state),
+which the import map's "imports" block points at one pinned jsDelivr file each, so every package loads once (two copies
+of @codemirror/state break the editor). BARE lists the packages and the version each is pinned at; their imports are
+followed the same way, bare ones through BARE (a package missing there is an error), and every file gets its hash.
+"""
+import base64
+import hashlib
+import json
+import re
+import sys
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+STATIC = Path(__file__).resolve().parent.parent / "deck" / "static"
+CLASSIC = re.compile(r"""https://(?:cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com)/[^"'`\s]+\.(?:js|css)(?=["'`])""")
+MODULES = ["https://cdn.jsdelivr.net/npm/@novnc/novnc@1.7.0/core/rfb.js",  # screen.js
+           "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs"]  # app.js loadPdfjs
+WORKERS = ["https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs"]  # fetched with its hash, run from a blob
+# The Code view's editor: package -> (version, its ES module entry). One version each, checked against every dependent's
+# range when they were picked (2026-11-14, npm latest).
+BARE = {
+    "@codemirror/state": ("6.7.6", "dist/index.js"), "@codemirror/view": ("6.43.15", "dist/index.js"),
+    "@codemirror/commands": ("6.11.1", "dist/index.js"), "@codemirror/language": ("6.13.1", "dist/index.js"),
+    "@codemirror/search": ("6.7.2", "dist/index.js"), "@codemirror/autocomplete": ("6.20.4", "dist/index.js"),
+    "@codemirror/lint": ("6.9.8", "dist/index.js"), "@codemirror/streamparser": ("6.0.0", "dist/index.js"),
+    "@codemirror/lang-javascript": ("6.2.5", "dist/index.js"), "@codemirror/lang-python": ("6.2.1", "dist/index.js"),
+    "@codemirror/lang-json": ("6.0.2", "dist/index.js"), "@codemirror/lang-markdown": ("6.5.2", "dist/index.js"),
+    "@codemirror/lang-html": ("6.4.12", "dist/index.js"), "@codemirror/lang-css": ("6.3.1", "dist/index.js"),
+    "@codemirror/lang-cpp": ("6.0.3", "dist/index.js"), "@codemirror/lang-rust": ("6.0.2", "dist/index.js"),
+    "@codemirror/lang-go": ("6.0.1", "dist/index.js"), "@codemirror/lang-java": ("6.0.2", "dist/index.js"),
+    "@codemirror/lang-yaml": ("6.1.3", "dist/index.js"), "@codemirror/lang-xml": ("6.1.0", "dist/index.js"),
+    "@codemirror/lang-sql": ("6.10.0", "dist/index.js"), "@codemirror/legacy-modes": ("6.5.5", ""),
+    "@lezer/common": ("1.5.5", "dist/index.js"), "@lezer/highlight": ("1.2.5", "dist/index.js"),
+    "@lezer/lr": ("1.4.12", "dist/index.js"), "@lezer/javascript": ("1.5.6", "dist/index.js"),
+    "@lezer/python": ("1.1.19", "dist/index.js"), "@lezer/json": ("1.0.3", "dist/index.js"),
+    "@lezer/markdown": ("1.8.1", "dist/index.js"), "@lezer/html": ("1.3.13", "dist/index.js"),
+    "@lezer/css": ("1.3.9", "dist/index.js"), "@lezer/cpp": ("1.1.6", "dist/index.js"),
+    "@lezer/rust": ("1.0.3", "dist/index.js"), "@lezer/go": ("1.0.1", "dist/index.js"),
+    "@lezer/java": ("1.1.5", "dist/index.js"), "@lezer/yaml": ("1.0.4", "dist/index.js"),
+    "@lezer/xml": ("1.0.6", "dist/index.js"),
+    "@marijn/find-cluster-break": ("1.0.4", "src/index.js"), "style-mod": ("4.1.4", "src/style-mod.js"),
+    "w3c-keyname": ("2.2.8", "index.js"), "crelt": ("1.0.7", "index.js"),
+}
+# What 12-code.js imports by name: the packages above, and these legacy language modes (by subpath)
+LEGACY_MODES = ["shell", "toml", "stex", "powershell", "dockerfile", "lua", "properties", "diff", "julia", "r", "ruby",
+                "swift", "clike", "octave", "cmake", "protobuf"]
+PKG = re.compile(r"^(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(/[A-Za-z0-9._/-]+)?$")
+
+
+def bare_url(spec: str) -> str:
+    """A bare import's file: its package's pinned version, and the entry, or the subpath given (.js added)."""
+    parts = spec.split("/")
+    name, sub = ("/".join(parts[:2]), "/".join(parts[2:])) if spec.startswith("@") else (parts[0], "/".join(parts[1:]))
+    if name not in BARE:
+        raise SystemExit(f"{spec}: package not in BARE (pin its version there)")
+    v, entry = BARE[name]
+    path = (sub if sub.endswith(".js") else f"{sub}.js") if sub else entry
+    return f"https://cdn.jsdelivr.net/npm/{name}@{v}/{path}"
+
+
+def bare_graph(roots: list[str]) -> tuple[dict, dict]:
+    """The import map's "imports" (each bare name the page or a module asks for -> its file) and every file's hash."""
+    imports, hashes = {}, {}
+
+    def walk(url: str) -> None:
+        if url in hashes:
+            return
+        hashes[url], body = sri(url)
+        for _, spec in IMPORT.findall(body.decode("utf-8", "replace")):
+            if spec.startswith((".", "/")):
+                walk(urllib.parse.urljoin(url, spec))
+            elif PKG.match(spec):
+                imports.setdefault(spec, bare_url(spec))
+                walk(imports[spec])
+    for r in roots:
+        imports.setdefault(r, bare_url(r))
+        walk(imports[r])
+    return dict(sorted(imports.items())), hashes
+IMPORT = re.compile(r"""(?:\bimport\s*(?:[\w*{}\s,$]+\s*from\s*)?|\bexport\s*(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s*from\s*"""
+                    r"""|\bimport\s*\(\s*)(["'])([^"'\n]+)\1""")
+
+
+def sri(url: str) -> tuple[str, bytes]:
+    body = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "deck-cdn-sri"}), timeout=30).read()
+    return "sha384-" + base64.b64encode(hashlib.sha384(body).digest()).decode(), body
+
+
+def graph(url: str, out: dict) -> None:
+    if url in out:
+        return
+    out[url], body = sri(url)
+    for _, spec in IMPORT.findall(body.decode("utf-8", "replace")):
+        if spec.startswith((".", "/")):
+            graph(urllib.parse.urljoin(url, spec), out)
+
+
+def main() -> int:
+    pages = [STATIC / "index.html", *sorted((STATIC / "app").glob("*.js"))]  # app.js is served joined from app/
+    names = sorted({u for f in pages for u in CLASSIC.findall(f.read_text(encoding="utf-8"))}
+                   - set(MODULES) - set(WORKERS))
+    print("Classic files (integrity=... crossorigin=\"anonymous\"):")
+    for u in names:
+        print(f"  {sri(u)[0]}  {u}")
+    print("Workers (app.js):")
+    for u in WORKERS:
+        print(f"  {sri(u)[0]}  {u}")
+    mods = {}
+    for u in MODULES:
+        graph(u, mods)
+    roots = [n for n in BARE if BARE[n][1]] + [f"@codemirror/legacy-modes/mode/{m}" for m in LEGACY_MODES]
+    imports, code = bare_graph(roots)
+    mods.update(code)
+    print(f"Import map (index.html, {len(imports)} bare names, {len(mods)} modules):")
+    print(json.dumps({"imports": imports, "integrity": mods}, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

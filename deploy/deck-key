@@ -1,0 +1,3 @@
+#!/bin/sh
+# Manage Deck keys (see deck/cli.py). Installed as a link into the checkout's deploy/, which is how it finds Deck.
+PYTHONPATH="$(dirname "$(dirname "$(readlink -f "$0")")")" exec python3 -m deck.cli "$@"
