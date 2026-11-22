@@ -65,18 +65,16 @@ a { color: var(--link); }
 #msg:focus-visible, .docedit:focus-visible, .richtitle:focus-visible, .tabname:focus-visible { outline: none; }
 .vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* ---- the app: one column on a phone; on a PC a grid with a draggable empty margin each side of the screen ---- */
+/* ---- the app: one column on a phone; on a PC the header over the view, full width, so the tab column and the shelf
+   sit at the window's edges (user 2026-11-21: "make the side columns always at the edge, no more adjsut margin") ---- */
 #app { position: relative; display: flex; flex-direction: column; height: calc(100dvh / var(--uizoom, 1)); background: var(--frame); color: var(--frame-text);
   overflow: hidden; padding-bottom: env(safe-area-inset-bottom); }
 .view { flex: 1; min-height: 0; overflow: auto; }
-.colgrip { display: none; }
 @media (min-width: 1100px) {
   #app { padding-bottom: 0; display: grid;
-    /* the margins: --padcw left, --feedcw right (default 0); dragged, applyLayout sets --coll/--colm/--colr so the
-       screen keeps its width and the margins take the slack */
-    grid-template-columns: var(--coll, var(--padcw, 0px)) var(--colm, minmax(0, 1fr)) var(--colr, var(--feedcw, 0px));
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas: "top top top" "pad main edge"; }
+    grid-template-areas: "top" "main"; }
   .top { grid-area: top; }
   #view-term, #view-board { grid-area: main; }
   .tabbar:not(:has(#screentab:not([hidden]), #reviewtab)) { display: none; }
@@ -84,15 +82,9 @@ a { color: var(--link); }
   #app.nobottom #screencol > :is(.keybar, .composer) { display: none !important; } /* a chat's (in #term) stay */
   #app.nobottom #view-term:not(:has(#term.chat)) { padding-bottom: 12px; }
   #app:has(#term.chat) #togglebottom { display: none; } /* a chat always shows its message box */
-  #app.noresize .colgrip { display: none; }
-  #app .colgrip { display: block; grid-area: main; z-index: 3; width: 10px; cursor: col-resize; touch-action: none; }
-  #grippad { justify-self: start; margin-left: -5px; }
-  #gripfeed { justify-self: end; }
-  .colgrip:hover, .colgrip.drag { background: linear-gradient(90deg, transparent 4px, var(--accent) 4px 6px, transparent 6px); }
-  #app.resizing { cursor: col-resize; user-select: none; }
+  #app.resizing { cursor: col-resize; user-select: none; } /* dragging Review's divider (02-prefs.js) */
   #layouts { display: flex; gap: 2px; margin-left: auto; }
   .layouts .paneltoggle { width: auto; min-width: 30px; padding: 0 8px; font: 600 calc(12px * var(--uitext, 1)) var(--ui); }
-  #togglefull[aria-pressed=false] .fsout, #togglefull[aria-pressed=true] .fsin { display: none; }
   #pulse { order: 1; margin-left: 6px; }
 }
 @media (max-width: 1099px) { #layouts, #pulse { display: none !important; } }
@@ -338,8 +330,10 @@ a { color: var(--link); }
 #chatstack > .chatlog { grid-area: 1 / 1; min-height: 0; }
 .chatlog.parked { content-visibility: hidden; visibility: hidden; pointer-events: none; } /* a kept chat, hidden with its layout */
 .chatlog { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px var(--gutter) 22px; display: flex; flex-direction: column;
-  gap: 12px; scrollbar-width: none; }
-.chatlog::-webkit-scrollbar { display: none; }
+  gap: 12px; }
+/* a thin scroll bar at the chat's right edge, as the Code view's (user 2026-11-21: "there should be a scroll bar on the
+   right of chat") */
+.chatlog { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--pane-text) 25%, transparent) transparent; }
 .chatlog:empty::before { content: "New chat: type a message below"; margin: auto; font: 500 calc(var(--chatfont, 14px) * .85) var(--ui); color: var(--pane-text-3); }
 .cmsg { max-width: 92%; min-width: 0; overflow-wrap: anywhere; }
 .cmsg.user { position: relative; align-self: flex-end; padding: 9px 14px; border-radius: var(--r-l) var(--r-l) 6px var(--r-l);
@@ -486,6 +480,10 @@ div.cfile.err { color: var(--danger); }
 .cqueued .qacts { top: calc(100% + 6px); }
 .cqueued .qnote { color: var(--pane-text-2); font: 600 calc(var(--chatfont, 14px) * .8) var(--ui); opacity: .8; }
 .uacts button, .cqueued .qacts button { padding: 4px 12px; border-radius: var(--r-s); color: var(--pane-text); background: var(--wash-2); font: 600 calc(var(--chatfont, 14px) * .8) var(--ui); }
+.uacts button[hidden] { display: none; }
+/* a sent message collapsed (its Collapse button): the first two lines, ending in "…"; a tap shows it all (07-chat.js) */
+.cmsg.user.shut > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.cmsg.user.shut > details.cattached { display: none; }
 /* a slash command or an interruption: a quiet centred label */
 .cmsg.user.cslash { align-self: center; display: flex; align-items: baseline; padding: 2px 10px; margin: 0; border-radius: var(--r-m); background: none;
   color: var(--pane-text-3); font: 500 calc(var(--chatfont, 14px) * .82) var(--mono); cursor: default; }
@@ -945,6 +943,15 @@ select#screenhost:disabled, select#screento:disabled { cursor: default; padding-
 /* Under the screen, the keys, the latest line and the box's row (picker, text, send) share the screen's edges (14px);
    picker and text take the send button's height in every look. */
 /* The Screen sits atop the chat column, taking the larger share (--scrfr), then a divider, then the chat */
+/* PC two-column Terminal (06-terminal.js split2Apply): the second terminal beside the screen column, the same pane */
+#term2col { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 4px; margin-left: 8px; }
+#term2col[hidden] { display: none; }
+#app.split2 #screencol { flex: 1 1 0; }
+.term2bar { flex: none; display: flex; align-items: center; gap: 6px; }
+.term2bar select { flex: 1; min-width: 0; }
+.term2bar button { flex: none; padding: 2px 10px; font: 600 calc(14px * var(--uitext, 1))/1 var(--ui); }
+#term2 { flex: 1; min-width: 0; min-height: 0; display: flex; padding: 8px; border-radius: var(--r-l); background: var(--pane); color: var(--pane-text); overscroll-behavior: none; }
+.term2empty { margin: auto; color: var(--pane-text-3); font: 500 calc(13px * var(--uitext, 1)) var(--ui); }
 #screencol > #view-screen { flex: var(--scrfr, 0.8) 1 0; min-height: 80px; padding: 0; position: relative; }
 #app.screening #screencol > #term { flex: calc(1 - var(--scrfr, 0.8)) 1 0; min-height: 80px; }
 /* The bar floats over the stream's top edge instead of taking a row (user 2026-11-03: "give the screen more space,

@@ -560,3 +560,17 @@ def test_openclaw_default_applied_before_history_and_first_prompt(offline, bridg
     assert not any(q.get("method") == "chat.send" for q in requests)
     a.pending[patch["id"]][0]({})
     assert sent(a)[-1]["method"] == "chat.history"
+
+
+def test_typed_answer_to_an_agents_question_shows_on_its_card(bridge):
+    # bug report 2026-11-18: an answer typed in the message box showed nowhere in the chat
+    a = adapter_mod.Adapter.__new__(adapter_mod.Adapter)
+    a.b, a.busy, a.menu, a.picks, a.quiz = bridge, False, None, {}, None
+    got = []
+    a.questions("k", [{"question": "Name?", "options": ["A"], "other": True}, {"question": "Sure?", "options": ["Yes"]}],
+                got.append)
+    a.handle({"t": "say", "text": "Ada"})
+    a.handle({"t": "answer", "id": "k#1", "value": "Yes"})
+    bridge.out.flush()
+    assert [(e["id"], e.get("choice")) for e in events(bridge) if e["t"] == "answered"] == [("k#0", "Ada"), ("k#1", "Yes")]
+    assert got == [[["Ada"], ["Yes"]]]

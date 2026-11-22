@@ -129,7 +129,7 @@ body { font-size: calc(15px * var(--uitext, 1)); line-height: 1.45; }
 .cqueued { background: var(--paper); color: var(--ink); box-shadow: 0 0 0 2px var(--rule); border: 2px dashed var(--rule); }
 .cqueued.csending { border-style: solid; }
 .cmsg.user.cpeer { border: none; }
-.cmsg.user.cslash { background: none; color: var(--c-text-3); box-shadow: none; align-self: center; margin: 0; padding: 0 8px; font: 700 calc(11px * var(--uitext, 1)) var(--mono); text-transform: uppercase; }
+.cmsg.user.cslash { background: none; color: var(--c-text-3); box-shadow: none; align-self: center; margin: 0; padding: 0 8px; font: 700 calc(var(--chatfont, 15px) * .75) var(--mono); text-transform: uppercase; }
 .cmsg.user.cslash > .cts { display: inline; margin: 0 0 0 .4em; font: inherit; color: inherit; letter-spacing: 0; }
 .cmsg.user.cslash > .cts::before { content: none; }
 .csent { border: 2px solid var(--rule); border-radius: 0; box-shadow: var(--hard); }

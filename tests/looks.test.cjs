@@ -81,6 +81,17 @@ test('UI size zooms the page; viewport lengths divide by the zoom, the terminal 
   assert.match(prefs, /sizeRow\("UI size"/); assert.match(prefs, /sizeRow\("UI text"/); assert.match(prefs, /sizeRow\("Text size"/);
 });
 
+test('the message box and the user\'s messages follow Text size, not UI text, in every look', () => {
+  // bug report 2026-11-15: "user text in chat box should be text, not UI text size"
+  for (const look of ['', ...LOOKS]) {
+    const css = look ? read(`deck/static/looks/${look}.css`) : base;
+    for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const sel = m[1].split(',').filter((x) => /#msg\b|\.cmsg\.user|\.csent/.test(x) && !/\.cts\b|button|\.gframe/.test(x));
+      if (sel.length) assert.doesNotMatch(m[2], /--uitext/, `${look || 'style.css'}: ${sel.join(',').trim()}`);
+    }
+  }
+});
+
 test('UI text scales every fixed font size in every look, and applies before the first paint', () => {
   for (const look of ['', ...LOOKS]) {
     const css = look ? read(`deck/static/looks/${look}.css`) : base;

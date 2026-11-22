@@ -3,15 +3,27 @@
 Notable changes. Deck updates from `main`; releases are tags with prebuilt binaries
 ([Releases](https://github.com/Ancorro/deck-public/releases)).
 
-## Unreleased
+## 0.6.0 (2026-11-22)
 
 ### Changes
+- Chats: Ctrl+Enter (Cmd+Enter on a Mac) in the message box sends the waiting messages now, as their Send now does, with any typed text.
+- Chats show a thin scroll bar at their right edge; it was hidden.
+- Chats: tap one of your messages for Collapse (beside Back to this) to fold it to its first two lines; a tap on it shows it all again. Offered on messages longer than two lines or with attached shelf items.
+- PC: the tab column and the shelf always sit at the window's edges. The draggable margins beside the session pane are gone, with the Fullscreen button and Settings → Advanced → Resizable session pane; saved layouts keep their other settings.
+- Paste images and files into a chat (Ctrl+V): a screenshot or files copied from the file manager upload and attach to the next message, as with `+`.
+- Two-column Terminal (PC): rest the mouse on the Terminal tab for a second and pick Two columns to show a second live terminal beside the first, with its own session picker.
+- The message box and slash-command lines follow Text size in every look; the Message, Plain, Blueprint and Zine looks had tied them to UI text.
+- Saved layouts keep UI size, UI text and Text size as well as the columns, and their buttons restore all of them (before, only the columns were saved).
 - Code view (PC view tab, between Review and Web): the chat, a code editor (CodeMirror 6) and, in the shelf's place, a file tree of the folder the open session works in, on its host. Ctrl+S saves; a save refuses to overwrite a file an agent changed meanwhile and offers Reload theirs or Overwrite with mine; an open file an agent changes reloads by itself unless it has unsaved edits; Deck's reload after an update waits for unsaved edits. Sessions report the folder their agent moved to (`PUT .../project {folder}`), which the tree opens.
 - Deck app window (Windows): `deck-app.exe` opens Deck in its own window (WebView2) with a taskbar button and a Start menu entry (`deck shortcut`); links to other sites open in the default browser, the title bar follows light and dark, and the Web view loads any site with the window's own logins.
 - A new Deck mark, Stack: a deck of session cards, the live one in front in Deck's orange with its LED, for the browser tab (now versioned, so a cached old icon is replaced), the home-screen icon (with a full-bleed maskable version) and the app window.
 - Settings → General → New sessions → Default model has a Computer row: the model Computer sessions start on (Claude's list; blank uses Claude's).
 - Phones: the shut shelf is as narrow as the shut tab strip in every look (Plain and Message made it 28-30 px).
 - Phones: the open shelf is as wide as the open tab column (at most 48%, 210 px), so the chat shows beside it.
+- Session note: agents ask through their question tool with options as buttons, Yes and No for yes/no questions, context inside the question.
+- Machine notes: a host whose notes stop taking other hosts' changes (uncommitted edits or a conflict) gets a Board alert naming the changed files, removed once a sync merges again. Before, the warning went only to the session-start hook, which hides it.
+- PC app: when a server start fails fast, the next start takes the server's packages from uv's cache (`--offline`), then the one after goes online again. Before, a PC with no DNS (Domain Name System) after logon could not start Deck until the network came back (48 minutes once), though the packages were already cached.
+- Machine notes: a new file nobody has committed yet (a session's script, a `.claude/` worktree) no longer stops the sync; only uncommitted edits to tracked files do. Before, one such file on one host stopped merges and pushes for every host.
 
 ## 0.5.0 (2026-11-14)
 

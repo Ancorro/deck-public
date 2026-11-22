@@ -697,7 +697,7 @@ class Claude(Adapter):
         text pasted, Enter. None: Esc, which declines the whole call. Several questions, or a multi-select, end on a
         review screen whose 1 submits."""
         qid = self.asks.pop(aid)["q"]
-        self.b.answered(aid)
+        self.b.answered(aid, value=v)
         if qid not in self.open_q:
             return
         qs, i = self.open_q[qid].get("questions") or [{}], self.qstep[qid]

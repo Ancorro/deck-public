@@ -155,7 +155,7 @@ If a host goes offline, its tabs stay in the column, marked offline; its chats w
 
 ## Get phone alerts
 
-Deck can notify your phone, through [ntfy](https://ntfy.sh), when an agent finishes or stops on a question. The notification carries the tab name, state and host, never terminal text.
+Deck can notify your phone, through [ntfy](https://ntfy.sh), when an agent stops after working a while, whether it is done or asking a question. The notification carries the tab name, state and host, never terminal text.
 
 1. Set it up on the host as described in [optional-features.md](optional-features.md).
 2. Subscribe to the same topic in the ntfy app.

@@ -24,3 +24,15 @@ func TestChildEnv(t *testing.T) {
 		t.Fatal("TMUX leaked into the server's environment")
 	}
 }
+
+// With no DNS after a logon, uv could not reach the package index and every server start failed for 48 minutes
+// (2026-11-19). A start after a fast failure runs from uv's cache; setup and normal starts still go online.
+func TestPythonOffline(t *testing.T) {
+	for _, offline := range []bool{false, true} {
+		args := python(t.TempDir(), offline, "-m", "deck.server").Args
+		i, j := slices.Index(args, "--offline"), slices.Index(args, "python")
+		if (i >= 0) != offline || (offline && i > j) {
+			t.Fatalf("offline=%v: args %q", offline, args)
+		}
+	}
+}

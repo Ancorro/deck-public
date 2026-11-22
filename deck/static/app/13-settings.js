@@ -176,7 +176,7 @@ function openSettings() {
   f.theme.value = prefs.theme === "paper" ? "light" : prefs.theme;
   f.look.value = prefs.look in (window.DECK_LOOKS || {}) ? prefs.look : "pad";
   f.shelfnew.value = prefs.shelfnew || "bottom";
-  f.folder.value = prefs.folder; f.brain.value = prefs.brain || ""; f.yolo.checked = prefs.yolo; f.pidurable.checked = !!prefs.pidurable; f.resize.checked = prefs.resize !== false;
+  f.folder.value = prefs.folder; f.brain.value = prefs.brain || ""; f.yolo.checked = prefs.yolo; f.pidurable.checked = !!prefs.pidurable;
   f.chatjump.checked = prefs.chatjump !== false; f.chattools.checked = prefs.chattools !== false; f.thinkopen.checked = !!prefs.thinkopen; f.notesopen.checked = !!prefs.notesopen; f.sessionagents.checked = !!prefs.sessionagents; f.describe.checked = !!prefs.describe; f.describer.value = prefs.describer || "claude"; f.crop.checked = prefs.crop !== false; f.composer.checked = prefs.composer !== false; f.font.value = font();
   f.agentpick.checked = prefs.agentpick !== false;
   const agents = agentsOn(prefs); // Default agent offers only agents set up on this host

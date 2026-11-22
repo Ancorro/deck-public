@@ -106,7 +106,7 @@ body { font-size: calc(13px * var(--uitext, 1)); line-height: 1.5; }
 .cqueued { box-shadow: inset 0 0 0 1px var(--pane-line); background: none; color: var(--pane-text-3); }
 .cqueued.csending { color: var(--pane-text-2); }
 .cmsg.user.cpeer { border: none; box-shadow: inset 0 0 0 1px var(--pane-line); }
-.cmsg.user.cslash { box-shadow: none; font-weight: 400; font-family: var(--ui); font-size: calc(12px * var(--uitext, 1)); margin: 0; }
+.cmsg.user.cslash { box-shadow: none; font-weight: 400; font-family: var(--ui); font-size: calc(var(--chatfont, 15px) * .8); margin: 0; }
 .csent { border-color: var(--pane-line); border-radius: var(--r-m); }
 .uacts button, .cqueued .qacts button { background: none; box-shadow: inset 0 0 0 1px var(--pane-line); font: 500 calc(12px * var(--uitext, 1)) var(--ui); }
 .cprose pre, .ctool pre { background: var(--pane-2); border-radius: var(--r-s); }
@@ -165,7 +165,7 @@ body { font-size: calc(13px * var(--uitext, 1)); line-height: 1.5; }
 .msgfield { border-radius: 14px; background: none; box-shadow: inset 0 0 0 1px var(--c-line); }
 #term.chat .msgfield { background: color-mix(in srgb, var(--pane-2) 45%, var(--pane)); }
 .msgfield:focus-within { box-shadow: inset 0 0 0 1px var(--c-text-3); }
-#msg { font: 400 calc(14px * var(--uitext, 1))/1.5 var(--ui); padding: 10px 14px; }
+#msg { font: 400 var(--chatfont, 15px)/1.5 var(--ui); padding: 10px 14px; }
 #msg::placeholder { color: var(--c-text-3); }
 .composer button[type=submit] { width: 34px; height: 34px; border-radius: 99px; background: var(--ink); color: var(--paper); }
 .composer button[type=submit] svg { width: 16px; height: 16px; }

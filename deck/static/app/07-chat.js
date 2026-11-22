@@ -460,10 +460,11 @@ function chatEvent(ev) {
       h("div", {}, ...opts, ...[submit, own, skip].filter(Boolean)));
     box.append(card);
   } else if (ev.t === "answered") {
-    for (const c of box.querySelectorAll(`.cask[data-id="${CSS.escape(ev.id)}"]`)) askDone(c, "", ev.how);
+    // choice: the answer given through Deck, typed in the message box too, which the card shows (else how it ended)
+    for (const c of box.querySelectorAll(`.cask[data-id="${CSS.escape(ev.id)}"]`)) askDone(c, ev.choice || "", ev.how);
   } else if (ev.t === "queued") { // typed while it works: gone to the agent, waiting till it takes it in
     const waiting = () => [...box.querySelectorAll(".csending")];
-    const act = (label, then) => h("button", { type: "button", onclick: () => {
+    const act = (label, then) => h("button", { type: "button", ...label === "Send now" ? { class: "qnow", title: "Ctrl+Enter" } : {}, onclick: () => {
       waiting().forEach((q) => q.querySelectorAll(".qacts button").forEach((b) => { b.disabled = true; }));
       then();
     } }, label);
@@ -477,10 +478,14 @@ function chatEvent(ev) {
         ws?.send(JSON.stringify({ t: "unhold" }));
         editInBox([...texts, $("#msg").value].filter(Boolean).join("\n"));
       })]];
-    if (!acts.length) acts.push(h("span", { class: "qnote" }, "Sending…"));
+    if (!acts.length) { acts.push(h("span", { class: "qnote" }, "Sending…")); if (!ev.from) sendNowNext = 0; }
     box.append(h("div", { class: `cmsg user cqueued csending${ev.from ? " cpeer" : ""}`, "data-id": ev.id,
       ...(ev.from ? { "data-from": ev.from } : {}) }, h("span", {}, splitAttached(ev.text)[0]), attachedFold(splitAttached(ev.text)[1]), ev.from ? peerLine("From", ev.from) : "",
       h("div", { class: "qacts" }, ...acts)));
+    if (!ev.from && keys.includes("sendnow") && Date.now() - sendNowNext < 10e3 && !chatBatch) { // after Ctrl+Enter
+      sendNowNext = 0;
+      sendWaitingNow();
+    }
   } else if (ev.t === "unqueued") box.querySelector(`.cqueued[data-id="${CSS.escape(ev.id)}"]`)?.remove();
   if (ev.t === "user") { // each reply gets a bar under its message that folds the reply away
     const n = v.turn = (v.turn || 0) + 1;
@@ -563,12 +568,28 @@ function userBubble(text, ts, from = "") {
     editInBox(`Let's go back to this:\n"${said}"\n`);
     el.classList.remove("open");
   } }, "↩ Back to this");
+  // Collapse: the message folds to its first two lines, as a reply folds under Hide reply (user 2026-11-21: "let me
+  // collapse my messages in chat as well"); a tap on it shows it all again. Offered only when it is longer than that.
+  const fold = h("button", { type: "button", onclick: (e) => {
+    e.stopPropagation();
+    el.classList.remove("open");
+    el.classList.add("shut");
+    el.title = "Collapsed: tap to show it all";
+  } }, "Collapse");
+  const body = h("span", {}, said);
   const el = h("div", { class: `cmsg user${from ? " cpeer" : ""}`, onclick: () => {
     if (!getSelection().isCollapsed) return; // selecting text to copy, not tapping
+    if (el.classList.contains("shut")) { el.classList.remove("shut"); el.removeAttribute("title"); return; }
+    if (!el.classList.contains("open")) fold.hidden = !foldable(body);
     el.classList.toggle("open");
-  } }, h("span", {}, said), attachedFold(rest), from ? peerLine("From", from) : "", ts ? h("div", { class: "cts" }, stampTime(ts)) : "",
-  h("div", { class: "uacts" }, back));
+  } }, body, attachedFold(rest), from ? peerLine("From", from) : "", ts ? h("div", { class: "cts" }, stampTime(ts)) : "",
+  h("div", { class: "uacts" }, fold, back));
   return el;
+}
+// A sent message is worth collapsing when it's more than two lines on screen, or carries attached shelf items
+function foldable(body) {
+  const s = getComputedStyle(body), line = parseFloat(s.lineHeight) || parseFloat(s.fontSize) * 1.5;
+  return body.getBoundingClientRect().height / uiZoom() > 2.5 * line || !!body.parentElement.querySelector(".cattached");
 }
 // Shelf items sent with a message (withAttached) fold shut under it, one line naming them; a tap opens them (user)
 const ATTACHED = "\n\n---\nAttached:\n\n";
@@ -590,6 +611,16 @@ function foldTurn(n) {
   for (const el of box.querySelectorAll(`:scope > [data-turn="${n}"], .cturnacts[data-acts="${n}"]`)) el.classList.toggle("folded", shut);
   turnBar(n);
   if (shut && bar.getBoundingClientRect().top < box.getBoundingClientRect().top) bar.scrollIntoView({ block: "start" });
+}
+// Ctrl+Enter in the message box (09-composer.js): every waiting message to the agent now, as Send now on one does; a
+// message just typed with it gets its Send now when it shows as waiting (sendNowNext: when, 0 for none)
+let sendNowNext = 0;
+function sendWaitingNow() {
+  const waiting = [...chatView?.box.querySelectorAll(".csending") || []];
+  if (!waiting.some((q) => q.querySelector(".qnow:not([disabled])"))) return false;
+  waiting.forEach((q) => q.querySelectorAll(".qacts button").forEach((b) => { b.disabled = true; }));
+  ws?.send(JSON.stringify({ t: "sendnow" }));
+  return true;
 }
 let chatBatch = false; // drawing a batch of events: the Hide bars wait for refreshBars at its end
 function turnBar(n) {

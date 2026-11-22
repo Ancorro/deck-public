@@ -404,3 +404,105 @@ termSurface.addEventListener("touchcancel", termEnd, { capture: true });
 let sizeTimer = 0;
 new ResizeObserver(() => { clearTimeout(sizeTimer); sizeTimer = setTimeout(sendSize, 120); }).observe($("#term"));
 for (const k of document.querySelectorAll(".keys button[data-k]")) k.onclick = () => { typingReset(); send(KEYS[k.dataset.k]); };
+
+// ---- PC two-column Terminal: a second live terminal beside the main screen (user 2026-11-15: "two column terminal drop
+// down when hover terminal tab"). Resting on the Terminal tab a second opens One column / Two columns; the second column has its
+// own session picker and keeps its own socket and xterm.js. It shows terminal sessions only: a chat lives in the main
+// column. Its session is saved as pcsession2 ("" = one column), shared by the PC app window and browsers.
+const split2 = { term: null, fit: null, ws: null, name: "", timer: 0 };
+const split2On = () => wide.matches && !!prefs.pcsession2;
+function split2Options() {
+  return sessions.filter((s) => s.running && !chatNames.has(s.name)).sort((a, b) => a.created - b.created);
+}
+function split2Close() {
+  clearTimeout(split2.timer);
+  if (split2.ws) { split2.ws.onclose = null; split2.ws.close(); }
+  split2.term?.dispose();
+  Object.assign(split2, { term: null, fit: null, ws: null, name: "" });
+}
+function split2Size() {
+  if (!split2.term || split2.ws?.readyState !== 1) return;
+  split2.fit.fit();
+  split2.ws.send(JSON.stringify({ t: "resize", cols: split2.term.cols, rows: split2.term.rows }));
+}
+function split2Connect(name) {
+  clearTimeout(split2.timer);
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const socket = new WebSocket(`${proto}://${location.host}${wsPath(name)}${textTerm() ? "?mode=text" : ""}`);
+  split2.ws = socket; socket.binaryType = "arraybuffer";
+  socket.onopen = () => { if (split2.ws === socket) { if (!textTerm()) split2.term.reset(); split2Size(); } };
+  socket.onmessage = (e) => { if (split2.ws === socket) split2.term.write(new Uint8Array(e.data)); };
+  socket.onclose = () => {
+    if (split2.ws !== socket) return;
+    split2.ws = null;
+    split2.term?.write("\r\n\x1b[90m[reconnecting…]\x1b[0m\r\n");
+    split2.timer = setTimeout(() => { if (split2.name === name && view === "term") split2Connect(name); }, 1500);
+  };
+}
+// Lays the second column out to match prefs and the view: called on show, on render (sessions changed) and on a pick.
+function split2Apply() {
+  const col = $("#term2col"), on = split2On() && view === "term" && !screenOn;
+  col.hidden = !on;
+  $("#app").classList.toggle("split2", on);
+  if (!on) { if (split2.term) split2Close(); return; }
+  const opts = split2Options(), want = fullName(prefs.pcsession2);
+  const pick = $("#term2pick"), key = opts.map((s) => `${s.name}\t${s.title || s.label}`).join("\n") + `\n${want}`;
+  if (pick.dataset.key !== key) {
+    pick.dataset.key = key;
+    pick.replaceChildren(...opts.map((s) => h("option", { value: s.name }, `${s.title || s.label}${s.host !== HOME_HOST ? ` · ${s.host}` : ""}`)));
+    if (!opts.some((s) => s.name === want)) pick.prepend(h("option", { value: want }, `${want.split("/").pop()} (not running)`));
+    pick.value = want;
+  }
+  if (split2.name === want && split2.term) return;
+  split2Close();
+  if (!opts.some((s) => s.name === want)) { $("#term2").replaceChildren(h("div", { class: "term2empty" }, "Pick a session above")); return; }
+  split2.name = want;
+  split2.term = new Terminal({ fontSize: termFont(), fontFamily: "'IBM Plex Mono', 'Noto Sans Symbols 2', ui-monospace, monospace",
+    cursorBlink: true, scrollback: 5000, theme: termTheme() });
+  split2.fit = new FitAddon.FitAddon();
+  split2.term.loadAddon(split2.fit);
+  if (window.WebLinksAddon) split2.term.loadAddon(new WebLinksAddon.WebLinksAddon((ev, url) => { ev.preventDefault(); openLink(url); }));
+  const host = h("div", { class: "termhost" });
+  $("#term2").replaceChildren(host);
+  split2.term.open(host);
+  split2.fit.fit();
+  split2.term.onData((d) => { if (split2.ws?.readyState === 1) split2.ws.send(JSON.stringify({ t: "in", d })); });
+  split2Connect(want);
+}
+// Two columns opens the second one on the next running terminal session other than the main one (else the main one).
+function setColumns(n) {
+  if (n === 1) { saveState({ pcsession2: "" }); split2Apply(); fit?.fit(); return; }
+  const opts = split2Options();
+  const next = opts.find((s) => s.name !== attached) || opts[0];
+  if (!next) { toast("No running terminal session for a second column"); return; }
+  saveState({ pcsession2: next.name });
+  show("term");
+  split2Apply(); fit?.fit();
+}
+{
+  const tab = document.querySelector('.tabbar button[data-view="term"]');
+  let leave = 0, hover = 0;
+  const menu = () => $("#termcols");
+  const close = () => menu()?.remove();
+  const open = () => {
+    clearTimeout(leave);
+    if (!wide.matches || menu()) return;
+    const two = split2On();
+    const item = (label, on, run) => h("button", { type: "button", role: "menuitemradio", "aria-checked": String(on),
+      onclick: () => { close(); run(); } }, `${on ? "✓ " : ""}${label}`);
+    const m = h("div", { id: "termcols", class: "hpop tabmenu termcols", role: "menu" },
+      item("One column", !two, () => setColumns(1)), item("Two columns", two, () => setColumns(2)));
+    m.addEventListener("pointerenter", () => clearTimeout(leave));
+    m.addEventListener("pointerleave", () => { leave = setTimeout(close, 250); });
+    document.body.append(m);
+    const r = tab.getBoundingClientRect();
+    m.style.left = `${r.left / uiZoom()}px`; m.style.top = `${(r.bottom + 4) / uiZoom()}px`;
+  };
+  // It drops down only after the mouse rests on the tab a second (user 2026-11-15: "it should only drop down after a second")
+  tab.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") { clearTimeout(hover); hover = setTimeout(open, 1000); } });
+  tab.addEventListener("pointerleave", () => { clearTimeout(hover); leave = setTimeout(close, 250); });
+  tab.addEventListener("pointerdown", () => clearTimeout(hover)); // a click opens the view, not the menu
+  $("#term2pick").onchange = (e) => { saveState({ pcsession2: e.target.value }); split2Apply(); };
+  $("#term2shut").onclick = () => setColumns(1);
+  new ResizeObserver(() => { clearTimeout(split2.sizeTimer); split2.sizeTimer = setTimeout(split2Size, 120); }).observe($("#term2"));
+}

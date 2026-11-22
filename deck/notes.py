@@ -68,7 +68,10 @@ def init() -> str:
 
 
 def clean() -> bool:
-    return not git("status", "--porcelain").stdout.strip()
+    """No uncommitted edits to tracked files. Untracked files (a session's new script, a tool's .claude/ worktree) do
+    not count: they blocked every merge network-wide (2026-11-19), yet git's merge and a push into this copy
+    (updateInstead) leave them alone and refuse only when an incoming file would overwrite one."""
+    return not git("status", "--porcelain", "--untracked-files=no").stdout.strip()
 
 
 def host_auth(url: str) -> list[str]:
@@ -279,7 +282,53 @@ def main(argv: list[str] | None = None) -> int:
     for p in problems:
         if not a.quiet or "conflict" in p or "uncommitted" in p:
             print(f"deck-notes: {p}", file=sys.stderr)
+    if a.cmd in ("pull", "sync"):
+        alert(problems)
     return 0
+
+
+# ---- a stuck copy goes on the Board ----
+
+ALERT = "notes-stuck-"  # Board key: one card per host
+
+
+def _board(method: str, path: str, body: dict | None = None) -> dict | None:
+    """Call this host's own Deck (the curl route agents use); None when Deck is not running or refuses."""
+    import urllib.request
+    req = urllib.request.Request(f"http://127.0.0.1:{config.PORT}{path}", method=method,
+                                 data=json.dumps(body).encode() if body is not None else None,
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return json.loads(r.read() or b"{}")
+    except (OSError, ValueError):
+        return None
+
+
+def alert(problems: list[str]) -> None:
+    """A sync that cannot merge (uncommitted edits or a conflict) only printed to stderr, which Claude's SessionStart
+    hook does not show, so a host read old notes for two days unnoticed (2026-11-13 to 11-15). Post a Board alert
+    while it lasts; remove it once a sync merges again. The card's id is kept in DATA so the same host can remove it."""
+    stuck = [p for p in problems if "uncommitted" in p or "conflict" in p]
+    mark = config.DATA / "notes-alert.json"
+    try:
+        old = json.loads(mark.read_text()).get("id")
+    except (OSError, ValueError, AttributeError):
+        old = None
+    if stuck:
+        dirty = git("status", "--porcelain").stdout.splitlines()
+        text = (f"This host's machine notes ({config.NOTES}) are not taking other hosts' changes, so its sessions "
+                f"read old notes. {'; '.join(stuck)}." + (f" Changed here: {', '.join(l[3:] for l in dirty[:8])}"
+                                                          f"{' …' if len(dirty) > 8 else ''}." if dirty else "")
+                + f" Commit or remove them (git -C {config.NOTES} status), then run deck-notes sync.")
+        card = _board("POST", "/api/board", {"kind": "alert", "key": ALERT + config.HOST_NAME,
+                                             "title": f"Notes stuck on {config.HOST_NAME}", "text": text,
+                                             "session": "deck-notes"})
+        if card and card.get("id"):
+            config.DATA.mkdir(parents=True, exist_ok=True)
+            mark.write_text(json.dumps({"id": card["id"]}))
+    elif old and _board("DELETE", f"/api/board/{old}") is not None:
+        mark.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

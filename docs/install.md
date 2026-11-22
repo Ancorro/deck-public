@@ -122,7 +122,7 @@ Layout of `%LOCALAPPDATA%\Deck`:
 | `deck` / `deck open [fragment]` | Open Deck in the default browser, starting `deck run` first if Deck isn't up (waits up to 90 s). `deck open devices-pair` opens a new pairing code. |
 | `deck window [fragment]` / `deck-app [fragment]` | Windows: Deck in its app window (WebView2), starting `deck run` first if needed; the browser without the WebView2 runtime. Links to other sites open in the default browser (http and https only); the Web view's page is a browser laid over its pane, so every site loads with the window's own logins. The title bar follows the page's light or dark theme. |
 | `deck shortcut` | Windows: add the Start menu entry **Deck** for `deck-app.exe` (named **Deck app** when a `Deck.lnk` that isn't Deck's own is already there). |
-| `deck run` | Start and supervise the server and tunnel (what autostart runs). |
+| `deck run` | Start and supervise the server and tunnel (what autostart runs). After a server start that fails fast, the next one runs offline from uv's cache, so Deck starts without a network once its packages are cached. |
 | `deck stop` | Stop `deck run`, the server, the tunnel and every chat bridge in `DATA/bridges`; on Windows also `tmux kill-server` (ends the sessions). |
 | `deck install` / `deck uninstall` | Windows only: set or delete the `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` value `Deck` = `conhost.exe --headless deck.exe run` (no console window, no admin). |
 

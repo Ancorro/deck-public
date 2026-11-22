@@ -162,7 +162,7 @@ class Adapter:
 
     def quiz_answer(self, v) -> None:
         z, self.quiz = self.quiz, None
-        self.b.answered(z["aid"])
+        self.b.answered(z["aid"], value=v)
         if v is None:
             self.b.state("working" if self.busy else "your_turn")
             return z["then"](None)

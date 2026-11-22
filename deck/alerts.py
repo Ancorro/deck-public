@@ -1,4 +1,5 @@
-"""Phone alerts: when an agent session finishes working (your turn) or stops on a question (needs you), post to ntfy.
+"""Phone alerts: when an agent session stops after working a while (your turn, or a question that needs you), post to ntfy.
+A question gets the same alert as any other stop (user 2026-11-18: "remove deck special notify on quesionts").
 
 DECK_NTFY (in ~/.config/deck/env) is the topic URL, e.g. https://ntfy.sh/deck-<random>; the phone's ntfy app
 subscribes to it. Unset = no alerts. Only the tab's name, its state and the host go out (no terminal text)."""
@@ -28,7 +29,7 @@ def changes(seen: dict, sessions: list[dict], now: float) -> list[dict]:
         state, (prev, since) = s["state"], seen.get(s["name"], (None, now))
         if state != prev:
             seen[s["name"]] = (state, now)
-            if not first and state in WORDS and (prev == "working" and now - since >= WORKED or state == "needs_you"):
+            if not first and state in WORDS and prev == "working" and now - since >= WORKED:
                 out.append(s)
     for name in set(seen) - {s["name"] for s in sessions}:
         del seen[name]
@@ -39,8 +40,7 @@ def message(s: dict, host: str, click: str | None) -> dict:
     """The ntfy JSON publish body for session s."""
     parts = urlsplit(URL)
     body = {"topic": parts.path.strip("/"), "title": f"{s.get('title') or s['label']}: {WORDS[s['state']]}",
-            "message": f"{s['label']} on {host}", "tags": ["bell" if s["state"] == "needs_you" else "white_check_mark"],
-            "priority": 4 if s["state"] == "needs_you" else 3}
+            "message": f"{s['label']} on {host}", "tags": ["white_check_mark"], "priority": 3}
     if click:
         body["click"] = click
     return body

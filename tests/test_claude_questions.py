@@ -80,3 +80,17 @@ def test_preview_question_typed_answer_goes_by_chat_about_this(tmp_path, monkeyp
     assert sent == ["2", "\x1b[B", "\r", ("type", "set opus to default")]  # no "Type something" row there
     assert c.open_ask() is None
     c.b.out.close()
+
+
+def test_typed_answer_shows_on_its_card(tmp_path, monkeypatch):
+    # bug report 2026-11-18: text typed in the message box while a question was open never showed in the chat
+    monkeypatch.setattr("time.sleep", lambda _: None)
+    c = claude_transcript(tmp_path)
+    c.write = lambda k: None
+    q = {"question": "Which step?", "options": [{"label": "Continue"}, {"label": "Stop"}]}
+    c.open_q, c.qstep = {"q": {"questions": [q]}}, {"q": 0}
+    c.ask_step("q")
+    c.command({"t": "say", "text": "do the other thing"})
+    done = [e for e in events(c) if e["t"] == "answered"]
+    assert done == [{"t": "answered", "id": "q#0", "choice": "do the other thing", "ts": done[0]["ts"]}]
+    c.b.out.close()

@@ -48,7 +48,6 @@ let buttons = []; // the Pad's script keys (/api/buttons)
 let sessions = []; // every host's sessions (/api/sessions/all), named host/name; another host's carry host, and offline when it is
 let hostsSeen = []; // each host's last answer: online true, false (its last list kept), or null (not reached yet)
 let syncSeen = ""; // the site journal's position at the last poll: when it moves, the shared data is loaded again
-let seenNeeds = new Set(); // sessions already buzzed for needing you
 let term, fit, ws, attached = null; // the xterm.js terminal, its fit addon, the open socket; attached = the open session's name
 let reconnectTimer;
 let reviewOn = false; // Review: the Terminal view with a document beside the chat (PC)
@@ -278,11 +277,10 @@ function render() {
   if (needs.length) setPulse(`${pad2(needs.length)} REQ`, "alert");
   else if (live) setPulse(`${pad2(live)} LIVE`, "live");
   else setPulse("STANDBY", "");
-  for (const s of needs) if (!seenNeeds.has(s.name)) navigator.vibrate?.([60, 40, 60]);
-  seenNeeds = new Set(needs.map((s) => s.name));
 
   renderPad(); // the Pad column shows beside every screen
   if (view === "term") renderChips();
   computerScreen();
+  split2Apply(); // the PC's second terminal column: its picker follows the sessions (06-terminal.js)
   if (codeOn) codeFollow(); // the Code view's tree shows the open session's folder (12-code.js)
 }

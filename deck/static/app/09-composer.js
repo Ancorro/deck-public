@@ -435,9 +435,15 @@ if (Dictation) {
   $("#say").addEventListener("submit", () => stop(true));
   sendBtn.addEventListener("pointerup", () => stop(true));
 }
-// Keyboard + mouse: Enter sends, Shift+Enter adds a line.
+// Keyboard + mouse: Enter sends, Shift+Enter adds a line. In a chat, Ctrl+Enter (Cmd+Enter on a Mac) sends the
+// waiting messages now, as their Send now does, the box's text with them (user 2026-11-22: "let me ctrl enter to send
+// the waiting msges"); that text's Send now comes once it shows as waiting (07-chat.js, sendNowNext).
 $("#msg").addEventListener("keydown", (ev) => {
-  if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing && window.matchMedia("(pointer: fine)").matches) {
+  if (ev.key !== "Enter" || ev.shiftKey || ev.isComposing) return;
+  if (chatView && (ev.ctrlKey || ev.metaKey)) {
+    ev.preventDefault();
+    if ($("#msg").value.trim() || attachedItems.length) { sendNowNext = Date.now(); submitMsg(); } else sendWaitingNow();
+  } else if (window.matchMedia("(pointer: fine)").matches) {
     ev.preventDefault();
     submitMsg();
   }
@@ -536,6 +542,23 @@ async function uploadToChat(files) {
     renderAttached();
   }
 }
+// Pasted into a chat's message box: images (a screenshot) and files copied from the file manager upload like the +
+// button (user 2026-11-15: "let me past images and files into deck chat"); pasted text stays plain typing. A
+// screenshot has no name of its own ("image.png"), so it gets the time it was pasted.
+function pastedFiles(dt) {
+  const files = [...(dt?.files || [])];
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+  return files.map((f, i) => /^image\.\w+$/.test(f.name) || !f.name
+    ? new File([f], `pasted-${stamp}${files.length > 1 ? `-${i + 1}` : ""}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`, { type: f.type })
+    : f);
+}
+document.addEventListener("paste", (e) => {
+  const files = pastedFiles(e.clipboardData);
+  // text, a terminal session, another view or another box (a dialog's): the browser's own paste
+  if (!files.length || !chatView || view !== "term" || e.target.closest?.("dialog, #shelf, #docpane, #codepane, #webpane")) return;
+  e.preventDefault();
+  uploadToChat(files);
+});
 $("#upbtn").onclick = () => $("#upfile").click();
 $("#upfile").onchange = (e) => { const files = [...e.target.files]; e.target.value = ""; uploadToChat(files); };
 const hasFiles = (e) => e.dataTransfer?.types.includes("Files") && $("#term").classList.contains("chat");

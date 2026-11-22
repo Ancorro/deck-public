@@ -36,12 +36,13 @@ CHOICES = {"agent": ("claude", "codex", "opencode", "pi", "agy", "openclaw"),
            "start": ("term", "deck", "agents"), "theme": ("system", "light", "dark", "paper"), "shelfnew": ("bottom", "top"),
            # the page's look (deck/static/looks/), shared like the theme
            "look": ("pad", "rack", "blueprint", "zine", "plain", "message")}
-# termw: the terminal's kept width (02-prefs.js applyLayout); b*: the widths before Fullscreen, for Minimize
-LAYOUT_WIDTHS = ("padw", "feedw", "padcw", "feedcw", "termw", "bpadcw", "bfeedcw", "btermw")
-LAYOUT_FLAGS = ("nopad", "nofeed", "nobottom", "full", "msgshut")
+# The PC's margins beside the session pane are gone (user 2026-11-21: "make the side columns always at the edge, no
+# more adjsut margin"): their keys (padcw, feedcw, termw, b* for Minimize, full) are dropped, saved ones too.
+LAYOUT_WIDTHS = ("padw", "feedw")
+LAYOUT_FLAGS = ("nopad", "nofeed", "nobottom", "msgshut")
 QUICK_KEYS = ("harness", "esc", "tab", "stab", "ctrlc", "up", "down", "left", "right", "enter")
 DEFAULTS = {"agent": "claude", "agentpick": True, "folder": "", "yolo": False, "hosting": True, "debug": False,
-            "resize": True, "start": "term", "theme": "system", "look": "pad", "font": 13, "pcfont": 13, "ui": 100,
+            "start": "term", "theme": "system", "look": "pad", "font": 13, "pcfont": 13, "ui": 100,
             "pcui": 100, "uitext": 100, "pcuitext": 100,
             "crop": True, "composer": True, "textterm": config.WINDOWS, "pidurable": False, "chat": False,
             "shelfnew": "bottom", "shelfagents": False, "sessionagents": False, "describe": False, "describer": "claude",
@@ -53,7 +54,14 @@ DEFAULTS = {"agent": "claude", "agentpick": True, "folder": "", "yolo": False, "
 
 def settings() -> dict:
     """All settings with defaults filled in."""
-    return {**DEFAULTS, "alias": "", "led": "", "pad": [], "hidekeys": [], "hostnames": {}, **load_settings()}
+    s = {**DEFAULTS, "alias": "", "led": "", "pad": [], "hidekeys": [], "hostnames": {}, **load_settings()}
+    # layouts saved before a key was retired (the margins' widths) read without it
+    known = lambda lay: {k: v for k, v in lay.items() if k in LAYOUT_FLAGS + LAYOUT_WIDTHS} if isinstance(lay, dict) else {}
+    if "layout" in s:
+        s["layout"] = known(s["layout"])
+    if isinstance(s.get("layouts"), list):
+        s["layouts"] = [{**x, "layout": known(x.get("layout"))} for x in s["layouts"] if isinstance(x, dict)]
+    return s
 
 
 def default_folder() -> str:
@@ -78,6 +86,20 @@ def clean_layout(raw):
                 for k, v in raw.items() if k in LAYOUT_FLAGS + LAYOUT_WIDTHS and v}
     except (TypeError, ValueError):
         raise ValueError("layout widths must be numbers") from None
+
+
+# A saved layout's sizes: what the Layouts menu sets beside the columns (UI size, UI text, Text size)
+LAYOUT_SIZES = {"font": (10, 36), "pcfont": (10, 36), "ui": (75, 150), "pcui": (75, 150),
+                "uitext": (75, 150), "pcuitext": (75, 150)}
+
+
+def clean_sizes(raw):
+    if not isinstance(raw, dict):
+        return {}
+    try:
+        return {k: max(LAYOUT_SIZES[k][0], min(LAYOUT_SIZES[k][1], int(v))) for k, v in raw.items() if k in LAYOUT_SIZES}
+    except (TypeError, ValueError):
+        raise ValueError("layout sizes must be numbers") from None
 
 
 def save_settings(raw: dict) -> dict:
@@ -226,8 +248,6 @@ def save_settings(raw: dict) -> dict:
         s["describer"] = raw["describer"]
     if "chat" in raw:  # agents in CHAT_AGENTS start as chat sessions (deck/chat_bridge.py)
         s["chat"] = bool(raw["chat"])
-    if "resize" in raw:  # desktop: drag the terminal's edges to resize the side columns
-        s["resize"] = bool(raw["resize"])
     if "crop" in raw:  # agent tabs: hide the agent's own footer, show its status as chips
         s["crop"] = bool(raw["crop"])
     if "composer" in raw:  # Terminal message box; off = type straight into the terminal
@@ -256,6 +276,8 @@ def save_settings(raw: dict) -> dict:
     for k in ("session", "pcsession"):  # the session the Terminal shows: phones, wide screens (PC app window, browsers)
         if k in raw:
             s[k] = str(raw[k])[:80]
+    if "pcsession2" in raw:  # PC two-column Terminal: the second column's session, "" for one column (06-terminal.js)
+        s["pcsession2"] = str(raw["pcsession2"])[:80]
     if "textterm" in raw:  # experimental text terminal (server.terminal_text)
         s["textterm"] = bool(raw["textterm"])
     if "layout" in raw:  # desktop columns: widths in px, and which are collapsed
@@ -264,7 +286,8 @@ def save_settings(raw: dict) -> dict:
         if not isinstance(raw["layouts"], list):
             raise ValueError("layouts must be a list")
         s["layouts"] = [{"id": str(x["id"])[:24], "name": " ".join(str(x.get("name") or "Layout").split())[:40] or "Layout",
-                         "layout": clean_layout(x.get("layout") or {})}
+                         "layout": clean_layout(x.get("layout") or {}),
+                         **({"sizes": z} if (z := clean_sizes(x.get("sizes"))) else {})}
                         for x in raw["layouts"][:12] if isinstance(x, dict) and x.get("id")]
     if "hidekeys" in raw:  # Terminal quick keys the user turned off
         if not isinstance(raw["hidekeys"], list) or not set(raw["hidekeys"]) <= set(QUICK_KEYS):

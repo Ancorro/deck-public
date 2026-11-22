@@ -71,6 +71,15 @@ STAMP = re.compile(r"\[(\w{3} \d{4}-\d\d-\d\d \d\d:\d\d [+-]\d{4})(?: · ([^\]]*
 AGENT_FROM = re.compile(r"agent in .+|another agent")
 
 
+def shown_answer(v) -> str:
+    """An answer as its card shows it: the option, the options picked, the typed text, or Skipped."""
+    if v is None:
+        return "Skipped"
+    if isinstance(v, dict):
+        return str(v.get("other", "")).strip()
+    return ", ".join(map(str, v)) if isinstance(v, list) else str(v)
+
+
 class Bridge:
     def __init__(self, folder: str, session: str):
         self.session = session
@@ -241,9 +250,12 @@ class Bridge:
         self.emit({"t": "ask", "id": id_, "title": title, "options": options, **more})
         self.state("needs_you", title)
 
-    def answered(self, id_, how: str = "") -> None:
-        """A card's question is done; how: what its card says when no choice was made here (default "Answered")."""
-        self.emit({"t": "answered", "id": id_, **({"how": how} if how else {})})
+    def answered(self, id_, how: str = "", value=False) -> None:
+        """A card's question is done; how: what its card says when no choice was made here (default "Answered").
+        value: the answer given through Deck (an option, a list, {"other": text}, None for Skip), which the card shows,
+        so a reply typed in the message box shows on its card too, and every answer still shows after a reload."""
+        choice = shown_answer(value) if value is not False else ""
+        self.emit({"t": "answered", "id": id_, **({"how": how} if how else {}), **({"choice": choice} if choice else {})})
 
     def stop_asked(self) -> bool:
         """A Stop, Kill or Restart is waiting in the page's commands: a command held up (an agent's typing waiting

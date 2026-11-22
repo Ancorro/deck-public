@@ -56,9 +56,9 @@ The Android app (`app/`, see [Phone app](install.md#phone-app)) is downloadable 
 |---|---|
 | Name | The Deck's name (Settings → General → Deck → Name), else the host name. Tap to open Settings |
 | Power LED (light-emitting diode) | This host's colour (see [Hosts](#hosts)) |
-| View tabs | Terminal; Review, Code and Web (PC only); Screen (only when set up) |
+| View tabs | Terminal; Review, Code and Web (PC only); Screen (only when set up). On a PC, resting the mouse on Terminal for a second drops down One column / Two columns: Two columns opens a second live terminal beside the screen, with its own session picker (terminal sessions; chats stay in the main column) and × back to one column. Its session is the shared setting `pcsession2` |
 | Readout | `NN REQ` when NN sessions need you; `NO LINK` when the host is unreachable. Hidden otherwise |
-| PC buttons | Layouts (UI size 75–150%, UI text 75–150% and Text size, then save the current column layout as a button; each saved one has Edit: Rename, Save current columns here, Delete. Right-clicking a layout's button opens the same menu), Fullscreen (drops the margins; Minimize restores them), Keys and message box (hides both; not shown in chats) |
+| PC buttons | Layouts (UI size 75–150%, UI text 75–150% and Text size, then save the current layout as a button: the columns plus those three sizes, all restored by its button; each saved one has Edit: Rename, Save current layout here, Delete. Right-clicking a layout's button opens the same menu), Keys and message box (hides both; not shown in chats) |
 | Bug (top right) | Type what went wrong; a new Claude session (Opus, medium effort, YOLO) starts in Deck's checkout, fixes it, pushes, and runs `deploy/update-all` |
 
 Opening Deck always lands on Terminal. It restores the session last open on any device of the same class (phones share one, PCs another; phone app or browser), else the newest running session, else a new shell.
@@ -119,7 +119,7 @@ A shell key whose command uses `$1`, `${1}` or `$@` asks for an argument on tap.
 
 **Key row** (phone, or PC with the message box off): Harness, Esc, Tab, ⇧Tab, ^C, ↑ ↓ ← →, ⏎. Settings → Appearance → Quick keys picks which show (`hidekeys`).
 
-**Message box**: type and Send (adds Enter). One tap on Send submits on finger lift and closes the keyboard. Text is kept if the terminal is disconnected. With a keyboard, Enter sends and Shift+Enter inserts a newline. On a PC the box has a tool row: Harness, Resume and Brain on the left; Mode (agy chats), Model and Effort (chats), `+` (attach files, chats), mic and Send on the right. On a phone `+` sits left of the box. On a PC the box can be collapsed with its chevron (`layout.msgshut`). Settings → General → Advanced → Message box off hides it; phones then type straight into the terminal.
+**Message box**: type and Send (adds Enter). One tap on Send submits on finger lift and closes the keyboard. Text is kept if the terminal is disconnected. With a keyboard, Enter sends and Shift+Enter inserts a newline. In a chat, Ctrl+Enter (Cmd+Enter on a Mac) sends the waiting messages now, as their Send now does, with the box's text if any. On a PC the box has a tool row: Harness, Resume and Brain on the left; Mode (agy chats), Model and Effort (chats), `+` (attach files, chats), mic and Send on the right. On a phone `+` sits left of the box. On a PC the box can be collapsed with its chevron (`layout.msgshut`). Settings → General → Advanced → Message box off hides it; phones then type straight into the terminal.
 
 **Harness** pop-up:
 
@@ -140,7 +140,7 @@ A shell key whose command uses `$1`, `${1}` or `$@` asks for an argument on tap.
 
 ### PC layout
 
-The tab column, the terminal and, in chats, the shelf sit side by side. Drag the terminal's left or right edge to leave an empty margin; double-click an edge to remove it. Settings → General → Advanced → Resizable session pane turns this off (`resize`). Column widths and flags are shared (`layout`); saved layouts are `layouts`.
+The tab column, the terminal and, in chats, the shelf sit side by side and fill the window, the tab column at its left edge and the shelf at its right, with no margins. Column flags are shared (`layout`); saved layouts are `layouts`.
 
 ### Code view (PC)
 
@@ -195,12 +195,13 @@ A chat shows:
 - Tool calls that wrap; tap one for arguments and output. Settings → General → Chat → Tool calls in chats off shows only messages (`chattools`).
 - Thinking, folded unless Settings → General → Chat → Thinking expanded (`thinkopen`). Edits to the machine notes repository are shown opened when Settings → General → Advanced → Infra changes expanded is on (`notesopen`).
 - A status bar with model, effort and mode.
+- A thin scroll bar at the chat's right edge.
 - A Stop button while the agent works; Esc and ^C also stop it.
 - Permission prompts and agent questions as cards, one at a time: options as buttons (multi-select: toggles, then Submit), a Type something box (the message box answers too) and Skip (declines). Question sources: Claude's AskUserQuestion, Codex's request_user_input in Plan mode, OpenCode's question tool, Pi extensions' select, confirm and input, OpenClaw's `ask_user`.
 - Error cards for failed agent requests, with details and **Try again** (asks the agent to continue; you can also change the model). Claude's automatic retries show here too; Stop cancels a retry and clears the working indicator even when Claude sends no completion event.
 - Messages typed while the agent works, marked as waiting until it takes them in. **Edit** takes them back into the message box (Claude, and Pi through its `clear_queue`); **Send now** makes Claude take them in at once. Codex, OpenCode, agy and OpenClaw take them in on their own, so these show *Sending…*.
-- Tap one of your messages for **↩ Back to this**: "Let's go back to this" and the message go into the message box to edit and send. Edit and Back to this open the phone's keyboard.
-- Files attached with `+`: uploaded to `DATA/chat/<session>.uploads/` on the session's host (`POST /api/sessions/{name}/upload`); the message names the path.
+- Tap one of your messages for **↩ Back to this**: "Let's go back to this" and the message go into the message box to edit and send. The same tap offers **Collapse** on a message longer than two lines (or with attached shelf items): it folds to its first two lines, and a tap on it shows it all again. Edit and Back to this open the phone's keyboard.
+- Files attached with `+`, dropped on the chat, or pasted into it (Ctrl+V: a screenshot, named `pasted-<time>.png`, or files copied from the file manager; pasted text stays text): uploaded to `DATA/chat/<session>.uploads/` on the session's host (`POST /api/sessions/{name}/upload`); the message names the path.
 
 Settings that affect chats: Jump to newest replies (`chatjump`: returning to a chat you left at its bottom jumps to the newest reply), Debug view (`debug`: also shows what Deck adds and hides: its instructions to the agent, stamps, reminders, hook output). Text size follows Settings → Appearance → Text size.
 
@@ -458,6 +459,7 @@ Agent sessions started from Deck get a short note (`DECK_CONTEXT` in `deck/agent
 - The host name.
 - Message stamps: each chat message starts with `[when · device, how]`, where how is phone app, phone browser or PC browser (judged from the page's touch screen and width). On a phone, or with no stamp (the terminal view adds none), replies stay phone-sized: short, one question at a time, tap-button answers, plain URLs, no QR (Quick Response) codes.
 - Stop and ask when stuck.
+- Questions through the agent's question tool, options as buttons, Yes and No for yes/no, context inside the question.
 - How to read the shelf, pin a page to it, link a file to it, and set the session's project.
 - How to list, read and message other sessions.
 - When the machine notes have an `AGENTS.md`: where they are, plus `PREFERENCES.md` and `PROFILE.md` in full.
@@ -582,7 +584,6 @@ Sections not marked (tab) are in General, in this order on a PC; on a phone Gene
 | Advanced | Agents can see sessions | `sessionagents` |
 | Advanced | Scripts (show the Scripts bar) | `scripts` |
 | Advanced | Message box | `composer` |
-| Advanced | Resizable session pane (PC only; not shown on phones) | `resize` |
 | Advanced | Infra changes expanded | `notesopen` |
 | Advanced | Debug view | `debug` |
 | Advanced | Text terminal | `textterm` |
@@ -653,12 +654,13 @@ Page state, written by the page so every browser and the phone app open where th
 |---|---|
 | `session` | Open session on phones |
 | `pcsession` | Open session on PCs. Kept apart from `session` because one session shown on a phone and a PC at once would keep resizing between their sizes |
+| `pcsession2` | The second terminal column's session on PCs (Two columns, from the Terminal tab); empty for one column |
 | `tabs` | Tab order |
 | `tabfolders` | Tab folders: `[{id, title, open, tabs}]` |
 | `hostshut` | Folded hosts |
 | `scriptshut` | Scripts folded away |
-| `layout` | PC columns: widths (`padw`, `feedw`, `padcw`, `feedcw`, `termw`, and `bpadcw`, `bfeedcw`, `btermw` for Minimize) and flags (`nopad`, `nofeed`, `nobottom`, `full`, `msgshut`) |
-| `layouts` | Saved layouts: `[{id, name, layout}]`, at most 12 |
+| `layout` | PC columns: widths (`padw`, `feedw`) and flags (`nopad`, `nofeed`, `nobottom`, `msgshut`) |
+| `layouts` | Saved layouts: `[{id, name, layout, sizes}]`, at most 12; `sizes` holds `ui`/`uitext`/`font` (or their `pc` forms) |
 
 ### Looks
 
@@ -759,6 +761,7 @@ A git repository every host keeps a full copy of, with no master (`deck/notes.py
 - Each host serves its copy at `/notes.git` (`git http-backend`, behind the same pairing and host key as the rest).
 - Commits push to every reachable peer (post-commit hook). Claude sessions start with `deck-notes sync` (pull from peers, then push).
 - A down host is skipped and catches up later: every host is checked at once with a 3-second connect before git runs, so one that is off costs about 3 s per sync.
+- A pull that cannot merge (uncommitted edits to tracked files, or a conflict, on this host) posts a Board alert, "Notes stuck on HOST", naming the changed files; the next pull that merges removes it.
 
 | Command | Effect |
 |---|---|
@@ -781,7 +784,7 @@ The Android app (`app/`, Capacitor; `app/push.sh` installs it over adb, the Andr
 1. Set `DECK_NTFY=https://ntfy.sh/<random topic>` in `DATA/env` and restart Deck.
 2. Subscribe to that topic in the [ntfy](https://ntfy.sh) app.
 
-When an agent tab finishes working (after 20 s or more of work) or stops on a question, the phone gets a notification (`deck/alerts.py`): tab name, state and host only, never terminal text. Tapping it opens Deck. The topic name is the only protection on ntfy.sh, so make it long and random, or use your own ntfy server.
+When an agent tab stops after 20 s or more of work (done, or waiting on a question), the phone gets a notification; a question gets the same notification as any other stop (`deck/alerts.py`): tab name, state and host only, never terminal text. Tapping it opens Deck. The topic name is the only protection on ntfy.sh, so make it long and random, or use your own ntfy server.
 
 ## Screen tab
 

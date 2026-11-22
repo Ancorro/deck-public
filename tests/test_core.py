@@ -1,3 +1,4 @@
+import json
 
 import pytest
 
@@ -177,13 +178,35 @@ def test_an_asking_script_key_gets_its_input_as_an_argument():
 
 
 def test_saved_layouts_are_cleaned_and_capped():
-    s = settings.save_settings({"layouts": [{"id": "a", "name": "  1 ", "layout": {"full": 1, "padcw": "300", "junk": 5}},
+    s = settings.save_settings({"layouts": [{"id": "a", "name": "  1 ", "layout": {"msgshut": 1, "padw": "300", "junk": 5}},
                                         {"name": "no id"}, "x"] + [{"id": str(i)} for i in range(20)]})
-    assert s["layouts"][0] == {"id": "a", "name": "1", "layout": {"full": True, "padcw": 300}}
+    assert s["layouts"][0] == {"id": "a", "name": "1", "layout": {"msgshut": True, "padw": 300}}
     assert len(s["layouts"]) == 10 and s["layouts"][1] == {"id": "0", "name": "Layout", "layout": {}}
     with pytest.raises(ValueError):
-        settings.save_settings({"layouts": [{"id": "b", "layout": {"padcw": "wide"}}]})
+        settings.save_settings({"layouts": [{"id": "b", "layout": {"padw": "wide"}}]})
     assert not settings.save_settings({"layouts": []}).get("layouts")
+
+
+def test_the_retired_margins_are_dropped():
+    # the PC's side columns sit at the window's edges, with no margins (user 2026-11-21): their widths and Fullscreen go,
+    # on save and from settings saved before
+    margins = {"padcw": 293, "feedcw": 372, "termw": 1662, "bpadcw": 1, "bfeedcw": 1, "btermw": 1, "full": True}
+    s = settings.save_settings({"layout": {**margins, "msgshut": 1}})
+    assert s["layout"] == {"msgshut": True}
+    config.settings_path().write_text(json.dumps({"layout": {**margins, "nobottom": True},
+                                                  "layouts": [{"id": "a", "name": "1", "layout": {**margins, "msgshut": True}}]}))
+    s = settings.settings()
+    assert s["layout"] == {"nobottom": True} and s["layouts"] == [{"id": "a", "name": "1", "layout": {"msgshut": True}}]
+    assert "resize" not in s
+
+
+def test_saved_layouts_keep_the_menu_sizes():
+    # the Layouts menu lists UI size, UI text and Text size: a saved layout keeps them too (bug report 2026-11-15)
+    s = settings.save_settings({"layouts": [{"id": "a", "name": "1", "layout": {"msgshut": 1},
+                                             "sizes": {"pcui": "125", "pcuitext": 300, "pcfont": 15, "junk": 1}}]})
+    assert s["layouts"][0]["sizes"] == {"pcui": 125, "pcuitext": 150, "pcfont": 15}
+    with pytest.raises(ValueError):
+        settings.save_settings({"layouts": [{"id": "b", "sizes": {"pcui": "big"}}]})
 
 
 def test_agentpick_setting_saves_and_agents_installed_lists_known_types(monkeypatch):
@@ -271,3 +294,10 @@ def test_a_script_tab_shows_its_name_when_its_program_sets_no_title(monkeypatch)
     assert sessions.pane_subtitle("vim notes.md", home, "Claude token") == "vim notes.md"  # the program's own title wins
     assert sessions.pane_subtitle(host, home) == "~"  # terminals and agents keep the folder
     assert sessions.pane_subtitle(host, home + "/src/deck") == "~/src/deck"
+
+
+def test_second_terminal_column_session_saves_and_clears():
+    settings.save_settings({"pcsession2": "pc/deck-shell-2"})
+    assert settings.settings()["pcsession2"] == "pc/deck-shell-2"
+    settings.save_settings({"pcsession2": ""})  # one column again
+    assert "pcsession2" not in settings.settings() or settings.settings()["pcsession2"] == ""

@@ -18,6 +18,7 @@ function applyPrefs() {
   applyLook();
   document.documentElement.dataset.theme = shownTheme();
   if (term) term.options.theme = termTheme(); // the terminal takes the pane's colours
+  if (split2.term) { split2.term.options.theme = termTheme(); split2.term.options.fontSize = termFont(); split2.fit.fit(); } // and the second column
   if (typeof codeRetheme === "function") codeRetheme(); // and the Code view's editor
   document.documentElement.style.setProperty("--uizoom", uiZoom());
   document.documentElement.style.setProperty("--uitext", uiText());
@@ -32,8 +33,6 @@ function applyPrefs() {
     sendSize(); scheduleCrop();
   }
   for (const k of document.querySelectorAll("#view-term .keys [data-q]")) k.hidden = (prefs.hidekeys || []).includes(k.dataset.q);
-  // Resizing off: no grips, and the columns go back to their default widths.
-  $("#app").classList.toggle("noresize", prefs.resize === false);
   applyLayout();
   applyScriptShut();
 }
@@ -98,39 +97,17 @@ function saveState(fields) {
   const done = holdPrefs(fields);
   api("PUT", "/api/settings", fields).then(() => done(true), () => done(true)); // kept on this page until the next save
 }
-// Desktop columns (widths, collapsed) are shared too, so the PC app window and a browser on the PC look alike.
+// The PC's layout flags are shared too, so the PC app window and a browser on the PC look alike. The session pane
+// always fills the window, the tab column and the shelf at its edges (user 2026-11-21: "make the side columns always
+// at the edge, no more adjsut margin"); the margins' old widths (padcw, feedcw, termw, full) are ignored.
 function applyLayout() {
   const l = prefs.layout || {};
-  for (const k of ["padcw", "feedcw"]) {
-    if (l[k] && prefs.resize !== false) $("#app").style.setProperty(`--${k}`, `${l[k]}px`);
-    else $("#app").style.removeProperty(`--${k}`);
-  }
-  // Margins dragged: the terminal keeps the width it had and the margins share what's left in their dragged ratio, so
-  // resizing the window changes the margins, not the terminal (a window narrower than it shrinks the terminal instead).
-  const keep = l.termw && (l.padcw || l.feedcw) && prefs.resize !== false;
-  // Margins saved before the terminal's width was: take the width they leave it now, once
-  if (!l.termw && (l.padcw || l.feedcw) && prefs.resize !== false && wide.matches) { saveCols(); return; }
-  const cols = keep ? { l: `minmax(0, ${l.padcw || 0}fr)`, m: `minmax(0, ${l.termw}px)`, r: `minmax(0, ${l.feedcw || 0}fr)` } : {};
-  for (const c of ["l", "m", "r"]) {
-    if (cols[c]) $("#app").style.setProperty(`--col${c}`, cols[c]);
-    else $("#app").style.removeProperty(`--col${c}`);
-  }
-  $("#togglefull").setAttribute("aria-pressed", !!l.full);
-  $("#togglefull").setAttribute("title", l.full ? "Minimize: the margins as before" : "Fullscreen: no margins");
   $("#app").classList.toggle("nobottom", !!l.nobottom);
   $("#togglebottom").setAttribute("aria-pressed", !l.nobottom);
   applyMsgShut();
   renderLayouts();
 }
 function saveLayout(k, v) { saveState({ layout: { ...(prefs.layout || {}), [k]: v || undefined } }); }
-// Desktop columns as laid out now, in px: [left margin, terminal, right margin].
-const gridCols = () => getComputedStyle($("#app")).gridTemplateColumns.split(" ").map(parseFloat);
-// After a margin drag: keep both margins and the terminal's width (applyLayout turns the margins into shares).
-function saveCols() {
-  const [pad, main, feed] = gridCols().map(Math.round);
-  saveState({ layout: { ...(prefs.layout || {}), padcw: pad || undefined, feedcw: feed || undefined, termw: pad || feed ? main : undefined } });
-  applyLayout();
-}
 sysDark.addEventListener("change", applyPrefs);
 
 // ---- views ----
@@ -158,6 +135,7 @@ function show(v, connect = true) {
     else detach();
   }
   window.deckScreen?.onShow(v === "term" && screenOn ? "screen" : v);
+  split2Apply(); // the PC's second terminal column shows with the Terminal view only (06-terminal.js)
   if (v === "board") loadBoard(true);
   render();
 }
@@ -231,55 +209,25 @@ for (const t of document.querySelectorAll(".tabbar button")) t.onclick = () => {
   grip.addEventListener("dblclick", () => { $("#app").style.removeProperty("--scrfr"); fit?.fit(); try { localStorage.removeItem("deck-screen-split"); } catch { /* fine */ } });
 }
 
-// ---- the PC's columns (shared layout: applyLayout) ----
-// Desktop: drag the terminal's left or right edge for an empty margin beside it (widths shared: applyLayout). Each
-// margin has its own width: --padcw on the left, --feedcw on the right (named for the columns they once held).
-const COL = { pad: 640, feed: 760 };
-for (const side of ["pad", "feed"]) {
-  const max = COL[side], cprop = `--${side}cw`;
-  const grip = $(`#grip${side}`);
-  grip.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    grip.setPointerCapture(e.pointerId);
-    // Drag in px: pin both margins at their current widths and drop the shares (saveCols restores them)
-    const [pad, , feed] = gridCols();
-    $("#app").style.setProperty("--padcw", `${pad}px`); $("#app").style.setProperty("--feedcw", `${feed}px`);
-    for (const c of ["l", "m", "r"]) $("#app").style.removeProperty(`--col${c}`);
-    grip.classList.add("drag"); $("#app").classList.add("resizing");
-    const box = $("#app").getBoundingClientRect();
-    const move = (ev) => {
-      const raw = (side === "pad" ? ev.clientX - box.left : box.right - ev.clientX) / uiZoom();
-      $("#app").style.setProperty(cprop, `${Math.round(Math.max(0, Math.min(max, raw)))}px`);
-    };
-    const up = () => {
-      grip.removeEventListener("pointermove", move);
-      grip.classList.remove("drag"); $("#app").classList.remove("resizing");
-      saveCols();
-    };
-    grip.addEventListener("pointermove", move);
-    grip.addEventListener("pointerup", up, { once: true });
-    grip.addEventListener("pointercancel", up, { once: true });
-  });
-  grip.addEventListener("dblclick", () => { // double-click: back to the default width (a margin: none)
-    const [pad, , feed] = gridCols();
-    $("#app").style.setProperty("--padcw", `${side === "pad" ? 0 : pad}px`);
-    $("#app").style.setProperty("--feedcw", `${side === "feed" ? 0 : feed}px`);
-    for (const c of ["l", "m", "r"]) $("#app").style.removeProperty(`--col${c}`);
-    saveCols();
-  });
-}
-// Fullscreen (PC header): the margins beside the terminal go; Minimize brings back the widths from before (user)
-$("#togglefull").onclick = () => {
-  const l = prefs.layout || {};
-  saveState({ layout: l.full
-    ? { ...l, full: undefined, padcw: l.bpadcw, feedcw: l.bfeedcw, termw: l.btermw, bpadcw: undefined, bfeedcw: undefined, btermw: undefined }
-    : { ...l, full: true, bpadcw: l.padcw, bfeedcw: l.feedcw, btermw: l.termw, padcw: undefined, feedcw: undefined, termw: undefined } });
-  applyLayout();
-};
 // Saved layouts (PC header): the Layouts button saves the columns as they are now, which adds a button that brings
 // them back, or deletes a saved one (user). Right-click a layout's button (or its Edit entry in the Layouts menu) to
 // rename it in place or save the current columns over it (user 2026-11-03: "let me edit and rename layouts")
-function sameLayout(a, b) { return JSON.stringify(Object.entries(a || {}).sort()) === JSON.stringify(Object.entries(b || {}).sort()); }
+// The retired margins' keys (applyLayout) don't count, so a layout saved with margins matches the same one without
+const MARGIN_KEYS = new Set(["padcw", "feedcw", "termw", "bpadcw", "bfeedcw", "btermw", "full"]);
+const layoutKeys = (l) => JSON.stringify(Object.entries(l || {}).filter(([k]) => !MARGIN_KEYS.has(k)).sort());
+function sameLayout(a, b) { return layoutKeys(a) === layoutKeys(b); }
+// A saved layout keeps what the Layouts menu lists beside the columns: UI size, UI text and Text size (user 2026-11-15:
+// "saved layouts does not save all the settings listed there")
+const layoutSizes = () => ({ [uiKey()]: Math.round(uiZoom() * 100), [uiTextKey()]: Math.round(uiText() * 100), [fontKey()]: font() });
+const layoutNow = () => ({ layout: { ...(prefs.layout || {}) }, sizes: layoutSizes() });
+const isLayoutNow = (x) => sameLayout(x.layout, prefs.layout) &&
+  Object.entries(x.sizes || {}).every(([k, v]) => (prefs[k] ?? (/font/.test(k) ? 13 : 100)) === v);
+function restoreLayout(x) {
+  saveState({ layout: { ...x.layout } });
+  applyLayout();
+  const sizes = Object.fromEntries(Object.entries(x.sizes || {}).filter(([k, v]) => prefs[k] !== v));
+  if (Object.keys(sizes).length) saveSetting(sizes).then(renderLayouts);
+}
 // A plain number reads "Layout 2" (not a bare number: user "vague button"); a name the user gave shows as given
 const layoutLabel = (x) => /^\d+$/.test(x.name) ? `Layout ${x.name}` : x.name;
 function renderLayouts() {
@@ -287,16 +235,16 @@ function renderLayouts() {
   if (!box) return;
   box.replaceChildren(...(prefs.layouts || []).map((x) => h("button", {
     class: "paneltoggle", type: "button", title: `Restore ${layoutLabel(x)} (right-click: rename, save over)`,
-    "aria-pressed": sameLayout(x.layout, prefs.layout), "data-layout": x.id,
-    onclick: () => { saveState({ layout: { ...x.layout } }); applyLayout(); },
+    "aria-pressed": isLayoutNow(x), "data-layout": x.id,
+    onclick: () => restoreLayout(x),
     oncontextmenu: (e) => { e.preventDefault(); layoutMenu(x, e.clientX, e.clientY); },
   }, layoutLabel(x))));
 }
 function layoutMenu(x, px, py) {
   popMenu(px, py, (item) => [
     item("Rename", () => renameLayout(x.id)),
-    item("Save current columns here", () =>
-      saveLayouts((prefs.layouts || []).map((y) => y.id === x.id ? { ...y, layout: { ...(prefs.layout || {}) } } : y))),
+    item("Save current layout here", () =>
+      saveLayouts((prefs.layouts || []).map((y) => y.id === x.id ? { ...y, ...layoutNow() } : y))),
     item("Delete", (btn) => {
       if (!confirmTwice(btn)) return false; // stays open: click again to delete
       saveLayouts((prefs.layouts || []).filter((y) => y.id !== x.id));
@@ -357,7 +305,7 @@ $("#layoutbtn").onclick = (e) => {
       const used = new Set(list.map((x) => x.name));
       let n = 1;
       while (used.has(String(n))) n++;
-      saveLayouts([...list, { id: Date.now().toString(36), name: String(n), layout: { ...(prefs.layout || {}) } }]);
+      saveLayouts([...list, { id: Date.now().toString(36), name: String(n), ...layoutNow() }]);
     }),
     ...list.map((x) => item(`Edit ${layoutLabel(x)}…`, () => layoutMenu(x, r.left, r.bottom + 4)))]);
 };

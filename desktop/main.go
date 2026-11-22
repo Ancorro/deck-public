@@ -43,7 +43,7 @@ import (
 )
 
 // version stamps ~/.config/deck/app-version: deploy/windows-setup.py runs again when it changes.
-const version = "0.5.0"
+const version = "0.6.0"
 
 // Deck's port (DECK_PORT overrides it, e.g. to test next to a running Deck); the tunnel port is the next one.
 func port() int {
@@ -137,8 +137,9 @@ func childEnv() []string {
 	return append(append(env, "PYTHONUTF8=1"), deckEnv()...) // UTF-8 files, not the Windows code page
 }
 
-// `python` with the server's packages, run by uv in the server folder.
-func python(root string, args ...string) *exec.Cmd {
+// `python` with the server's packages, run by uv in the server folder. uv asks the package index for them on every
+// run; offline, it takes them from its cache instead (needs an earlier run to have cached them).
+func python(root string, offline bool, args ...string) *exec.Cmd {
 	uv := findExe("uv")
 	if uv == "" {
 		uv = "uv"
@@ -146,6 +147,9 @@ func python(root string, args ...string) *exec.Cmd {
 	a := []string{"run", "--no-project", "--python", "3.12", "--with", "aiohttp", "--with", "qrcode"}
 	if runtime.GOOS == "windows" {
 		a = append(a, "--with", "pywinpty")
+	}
+	if offline {
+		a = append(a, "--offline")
 	}
 	c := exec.Command(uv, append(append(a, "python"), args...)...)
 	c.Dir, c.Env = root, childEnv()
@@ -165,7 +169,7 @@ func setup(root string, out io.Writer) {
 	if host == "" {
 		host = "pc"
 	}
-	c := python(root, "deploy/windows-setup.py", host)
+	c := python(root, false, "deploy/windows-setup.py", host)
 	c.Stdout, c.Stderr = out, out
 	if err := c.Run(); err != nil {
 		log.Printf("setting up Deck failed: %v", err)
@@ -191,11 +195,11 @@ func supervisor() int {
 var children sync.Map // pid -> struct{}
 
 // keep runs what start makes, again whenever it exits: after a second if it ran a while, backing off to a minute if
-// it keeps failing fast.
-func keep(name string, out io.Writer, start func() *exec.Cmd) {
-	wait := time.Second
+// it keeps failing fast. start gets how many starts in a row have failed fast (0 after one that ran a while).
+func keep(name string, out io.Writer, start func(fails int) *exec.Cmd) {
+	wait, fails := time.Second, 0
 	for {
-		c := start()
+		c := start(fails)
 		c.Stdin, c.Stdout, c.Stderr = nil, out, out
 		t := time.Now()
 		err := c.Start()
@@ -205,9 +209,9 @@ func keep(name string, out io.Writer, start func() *exec.Cmd) {
 			children.Delete(c.Process.Pid)
 		}
 		if time.Since(t) > time.Minute {
-			wait = time.Second
+			wait, fails = time.Second, 0
 		} else {
-			wait = min(2*wait, time.Minute)
+			wait, fails = min(2*wait, time.Minute), fails+1
 		}
 		log.Printf("%s exited (%v); starting it again in %v", name, err, wait)
 		time.Sleep(wait)
@@ -266,7 +270,7 @@ func run() error {
 	setup(root, out)
 	if iroh := findExe("deck-iroh"); iroh != "" {
 		// The iroh tunnel: phones reach this Deck by its key on any network (see tunnel/ and docs/install.md).
-		go keep("deck-iroh", out, func() *exec.Cmd {
+		go keep("deck-iroh", out, func(int) *exec.Cmd {
 			c := exec.Command(iroh, "serve", "--key", filepath.Join(configDir(), "iroh.key"),
 				"--to", fmt.Sprintf("127.0.0.1:%d", port()+1), "--id-file", filepath.Join(configDir(), "iroh.id"))
 			c.Env = append(childEnv(), "HOME="+home()) // deck-iroh reads HOME, which Windows doesn't set
@@ -276,9 +280,11 @@ func run() error {
 	} else {
 		log.Print("deck-iroh not found: no iroh tunnel")
 	}
-	keep("Deck server", out, func() *exec.Cmd {
+	keep("Deck server", out, func(fails int) *exec.Cmd {
 		waitForPort() // another Deck took the port: let it be until it stops
-		c := python(root, "-m", "deck.server")
+		// Every other start after one that failed fast runs offline: with no DNS after a logon, uv could not reach the
+		// package index and every start failed for 48 minutes (2026-11-19), though the packages were cached.
+		c := python(root, fails%2 == 1, "-m", "deck.server")
 		c.Env = append(c.Env, fmt.Sprintf("DECK_PORT=%d", port()), fmt.Sprintf("DECK_TUNNEL_PORT=%d", port()+1),
 			"DECK_SUPERVISED=1")
 		return c

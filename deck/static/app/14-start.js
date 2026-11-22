@@ -137,7 +137,7 @@ window.addEventListener("online", resumePage);
     const moved = {}, l = {}, tabs = JSON.parse(localStorage.getItem("deck-tabs") || "null");
     if (tabs && !prefs.tabs) moved.tabs = tabs;
     if (oldSession && !prefs[sessionKey()]) moved[sessionKey()] = oldSession;
-    const cols = { padcw: 0, feedcw: 0, nobottom: 1 };
+    const cols = { nobottom: 1 };
     for (const [k, flag] of Object.entries(cols)) {
       const v = localStorage.getItem(`deck-${k}`);
       if (flag ? v === "1" : +v) l[k] = flag ? true : +v;
@@ -150,7 +150,7 @@ window.addEventListener("online", resumePage);
       tabOrder = prefs.tabs || [];
       applyLayout();
     }
-    for (const k of ["session", "tabs", "textterm", "padw", "nopad", ...Object.keys(cols)]) localStorage.removeItem(`deck-${k}`);
+    for (const k of ["session", "tabs", "textterm", "padw", "nopad", "padcw", "feedcw", ...Object.keys(cols)]) localStorage.removeItem(`deck-${k}`);
   } catch { /* try again next time */ }
   attached = fullName(prefs[sessionKey()] || oldSession || null);
   useDraft(attached);
