@@ -136,8 +136,35 @@ async def agent_models(request):
 
 
 async def get_logins(request):
-    """Each installed CLI's sign-in state here (deck/logins.py); ?fresh=1 checks again instead of the 20 s cache."""
-    return web.json_response(await asyncio.to_thread(logins.status, request.query.get("fresh") == "1"))
+    """Shared agent and tool sign-ins across hosts (deck/logins.py); ?here=1 checks this host only, ?fresh=1 skips cache."""
+    import aiohttp
+
+    from .. import auth, site
+    fresh = request.query.get("fresh") == "1"
+    if request.query.get("here") == "1" or not auth.host_key():
+        return web.json_response(await asyncio.to_thread(logins.status, fresh))
+
+    async def ask(name: str):
+        h = site.host_of(name)
+        if (h and h.get("current")) or (not h and name == config.HOST_NAME):
+            return name, await asyncio.to_thread(logins.status, fresh)
+        if not h or not h.get("url"):
+            return name, None
+        q = "?here=1&fresh=1" if fresh else "?here=1"
+        try:
+            async with request.app["peer_http"].get(
+                f"{h['url'].rstrip('/')}/api/logins{q}",
+                headers={"Authorization": f"Bearer {auth.host_key()}"},
+                timeout=aiohttp.ClientTimeout(total=50, sock_connect=3),
+            ) as r:
+                data = await r.json() if r.status == 200 else None
+                return name, data if isinstance(data, list) else None
+        except (TimeoutError, aiohttp.ClientError, OSError, ValueError):
+            return name, None
+
+    names = site.order() or [config.HOST_NAME]
+    got = [(name, items) for name, items in await asyncio.gather(*map(ask, names)) if items]
+    return web.json_response(logins.merge(got))
 
 
 async def start_login(request):

@@ -4,8 +4,10 @@
 a script"; "also in settings"). Deck never sees or stores the login itself: each tool keeps its own."""
 import concurrent.futures
 import os
+import re
 import shutil
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -26,12 +28,13 @@ TOOLS = {
     "gh": {"name": "GitHub", "status": ["gh", "auth", "status"],
            "login": "printf 'Y\\n' | gh auth login --hostname github.com --git-protocol https --web",
            "what": "GitHub account: agents push code and open pull requests"},
-    "agy": {"name": "agy", "status": ["agy", "models"], "login": "agy",
-            "what": "Google account: agy sessions", "optional": True},
+    "agy": {"name": "Gemini", "status": ["agy", "models"], "login": "agy",
+            "what": "Google account: Gemini (agy) sessions", "optional": True},
     "hf": {"name": "Hugging Face", "status": ["hf", "auth", "whoami"], "login": "hf auth login",
            "what": "Hugging Face account: models and datasets", "optional": True},
 }
 _cache: dict = {"at": 0.0, "list": []}
+_lock = threading.Lock()
 TTL = 20  # seconds a check is reused: the page polls while a login tab is open
 
 
@@ -53,12 +56,13 @@ def find(tool: str) -> str:
 def _signed_in(tool: str, path: str) -> bool:
     argv = [path, *TOOLS[tool]["status"][1:]]
     try:
-        r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+        r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=45,
                            stdin=subprocess.DEVNULL, env={**os.environ, "NO_COLOR": "1"})
     except (OSError, subprocess.TimeoutExpired):
         return False
     if tool == "opencode":  # always exits 0: signed in when it lists a credential ("N credentials", N > 0)
-        return r.returncode == 0 and any(w.isdigit() and int(w) > 0 for line in r.stdout.splitlines()
+        clean = re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
+        return r.returncode == 0 and any(w.isdigit() and int(w) > 0 for line in clean.splitlines()
                                          if "credential" in line for w in line.split())
     if tool == "agy":  # no status command: its model list comes back only when signed in
         return r.returncode == 0 and "sign in" not in (r.stdout + r.stderr).lower() and "	" in r.stdout
@@ -67,16 +71,44 @@ def _signed_in(tool: str, path: str) -> bool:
 
 def status(fresh: bool = False) -> list[dict]:
     """[{tool, name, what, installed, signedin, optional}] for every tool installed here, checked in parallel."""
-    if not fresh and time.time() - _cache["at"] < TTL:
-        return _cache["list"]
-    found = {t: find(t) for t in TOOLS}
-    here = [t for t in TOOLS if found[t]]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(here) or 1) as pool:
-        signed = dict(zip(here, pool.map(lambda t: _signed_in(t, found[t]), here)))
-    out = [{"tool": t, "name": TOOLS[t]["name"], "what": TOOLS[t]["what"], "optional": bool(TOOLS[t].get("optional")),
-            "signedin": signed[t]} for t in here]
-    _cache.update(at=time.time(), list=out)
-    return out
+    with _lock:
+        if not fresh and time.time() - _cache["at"] < TTL:
+            return _cache["list"]
+        found = {t: find(t) for t in TOOLS}
+        here = [t for t in TOOLS if found[t]]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(here) or 1, 3)) as pool:
+            signed = dict(zip(here, pool.map(lambda t: _signed_in(t, found[t]), here)))
+        out = [{"tool": t, "name": TOOLS[t]["name"], "what": TOOLS[t]["what"], "optional": bool(TOOLS[t].get("optional")),
+                "signedin": signed[t]} for t in here]
+        _cache.update(at=time.time(), list=out)
+        return out
+
+
+def merge(per_host: list[tuple[str, list[dict]]]) -> list[dict]:
+    """Combine per-host login status lists into one unified list in TOOLS order."""
+    by_tool: dict[str, dict] = {}
+    for host, items in per_host:
+        for item in items or []:
+            tool = item.get("tool")
+            if not tool:
+                continue
+            entry = by_tool.setdefault(tool, {
+                "tool": tool,
+                "name": item.get("name") or TOOLS.get(tool, {}).get("name", tool),
+                "what": item.get("what") or TOOLS.get(tool, {}).get("what", ""),
+                "optional": bool(item.get("optional", TOOLS.get(tool, {}).get("optional", False))),
+                "hosts": [],
+                "missing": [],
+            })
+            if host not in entry["hosts"]:
+                entry["hosts"].append(host)
+            if not item.get("signedin") and host not in entry["missing"]:
+                entry["missing"].append(host)
+    ordered = [k for k in TOOLS if k in by_tool] + [k for k in by_tool if k not in TOOLS]
+    return [
+        {**by_tool[k], "signedin": not by_tool[k]["missing"]}
+        for k in ordered
+    ]
 
 
 def login_key(tool: str) -> dict:

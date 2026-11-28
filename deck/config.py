@@ -50,15 +50,23 @@ if WINDOWS:
     # terminal, so a pane's shell got pipes and typed input never reached it.
     BASH = (_kit / "bash.exe").as_posix()
     _local = os.environ.get("LOCALAPPDATA", str(HOME))
-    _path = [str(_kit), str(HOME / ".local" / "bin"), os.path.join(os.environ.get("APPDATA", ""), "npm"),
-             str(HOME / ".pi" / "agent" / "bin")]
+    _extra = [str(HOME / ".local" / "bin"), os.path.join(os.environ.get("APPDATA", ""), "npm"),
+              str(HOME / ".pi" / "agent" / "bin")]
     # `uv run --with` puts throwaway cache venvs first on PATH; agents' `python` then had no packages and lost installs
     _inherited = [p for p in os.environ.get("PATH", "").split(os.pathsep)
                   if p and not re.search(r"[\\/]uv[\\/]cache[\\/]|[\\/]deck[\\/]server[\\/]\.venv", p, re.I)]
+    _seen: set[str] = set()
+    _merged: list[str] = []
+    for _p in [str(_kit), *_inherited, *_extra]:
+        if not _p:
+            continue
+        _key = os.path.normcase(os.path.normpath(_p))
+        if _key not in _seen:
+            _seen.add(_key)
+            _merged.append(_p)
     os.environ.pop("VIRTUAL_ENV", None)
     os.environ.update({
-        "PATH": os.pathsep.join([p for p in _path if p not in _inherited]
-                                + _inherited),  # a restarted server inherits the last one's PATH
+        "PATH": os.pathsep.join(_merged),  # a restarted server inherits the last one's PATH
         "HOME": str(HOME),  # MSYS2's ~ would otherwise be inside the kit
         "TMUX_TMPDIR": os.path.join(_local, "deck", "tmux"),  # the kit may be read-only (Program Files)
         "MSYS": "noglob",  # MSYS programs started from Windows would glob and brace-expand their arguments
@@ -115,3 +123,8 @@ def recent_path() -> Path:
 def run_log(name: str) -> Path:
     """Where a script key's output is kept (its pane pipes it there)."""
     return DATA / "runs" / f"{name}.log"
+
+
+def run_files(name: str) -> Path:
+    """A script key's DECK_OUT: the files it hands to the device that pressed it (the key's window saves them)."""
+    return DATA / "runs" / f"{name}.files"

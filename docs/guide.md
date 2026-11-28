@@ -73,7 +73,7 @@ Contents, top to bottom:
 
 1. **Scripts bar**: the Scripts fold toggle (`scriptshut`) and `+` (new script). Shown when Settings → General → Advanced → Scripts is on or any script exists.
 2. **Script keys**: one row each (icon, name, run clock while running). See [Scripts](#scripts).
-3. **`+`**: opens New session: Terminal and each agent set up on that host (Claude, Codex, OpenCode, Pi, agy, OpenClaw; `agents` in `GET /api/settings`). With Settings → General → New sessions → Choose agent each time off (`agentpick`), `+` skips the picker and starts Default agent (`agent`), falling back to the picker on a host where that agent is not set up. Holding `+` (or right-clicking it on a PC) always opens the picker.
+3. **`+`**: opens New session: Terminal and each agent set up on that host (Claude, Codex, OpenCode, Pi, Gemini (agy), OpenClaw; `agents` in `GET /api/settings`). With Settings → General → New sessions → Choose agent each time off (`agentpick`), `+` skips the picker and starts Default agent (`agent`), falling back to the picker on a host where that agent is not set up. Holding `+` (or right-clicking it on a PC) always opens the picker.
 4. **Session tabs**, oldest first. With more than one host, tabs are grouped under each host's name (this host first, "offline" when unreachable), each group with its own `+`.
 5. **Trash**: closed agent chats (see [Closing a session](#closing-a-session)).
 
@@ -113,7 +113,9 @@ A shut folder lights up when a tab inside is open or needs you. Folders are shar
 | Hold, drag | Move. Order is saved as `pad`; new keys land after their default neighbour |
 | Right-click (PC) | Run / Edit / Delete (Delete asks for a second click) |
 
-A shell key whose command uses `$1`, `${1}` or `$@` asks for an argument on tap. The editor's **Run on** picks the host a key runs on. Keys are stored in `DATA/buttons.json` and sync to every host.
+A shell key whose command uses `$1`, `${1}` or `$@` (or `$2`...) asks for an argument on tap. Its editor's **Fields** (comma-separated, e.g. `Link, Size in MB`) gives it one box per field, passed as `$1`, `$2`...; a blank box stays in its place, as an empty argument. The editor's **Run on** picks the host a key runs on. Keys are stored in `DATA/buttons.json` and sync to every host.
+
+A script hands files to the device that pressed its key through the folder in `$DECK_OUT` (`DATA/runs/<session>.files`). While its window is open, Deck starts a browser download or saves the file to Documents/Deck in the phone app. **Save on this device** lets you save it again and choose a location in browsers that offer a save dialog. Deck leaves `.<file>.saved` beside the file after handing it off to the browser or writing it in the app, so the script can wait for that and use a fallback if no window picks it up. Write a file as a dotfile (`.<file>.part`) and rename it when done: dotfiles aren't offered. Routes: `GET /api/sessions/{name}/text` lists them (`files`), `GET .../files/{file}` and `POST .../files/{file}/saved`. The folder goes when the session closes.
 
 ### Terminal input
 
@@ -347,6 +349,7 @@ The `+` picker, the key editor and the key builder offer only the agents set up 
 
 - Runs in its own terminal; the chat reads its transcript and hooks. A tool approval is an Allow / Deny card.
 - Other dialogs it stops on (Claude Code 2.1.317's "Session paused": a refused message, or a model that needs usage credits) show as a card with the dialog's own text and options, read off its screen; a pick presses the arrow keys to that option and Enter. A dialog Deck cannot read is a note to answer it in the terminal. Answered in the terminal, the card closes.
+- Claude's "You should know" plugin card shows in the chat as a question. Its buttons press the card's hotkeys only while the card is on Claude's screen (otherwise a note says nothing was pressed); pressed mid-turn, they wait for the turn to end. **Turn off suggestions** sets `cc-plugin-you-should-know@builtin` to false in `~/.claude/settings.json` (`enabledPlugins`) and types nothing; the chat shows no more of its cards, and new sessions start without it.
 
 ### OpenCode
 
@@ -389,14 +392,15 @@ Settings → General → Advanced → Durable Pi (`pidurable`, per host; shown o
 
 ### agy
 
-Google's Antigravity CLI `agy`; install and sign in with Google's installer. Shown where `agy` is on the `PATH` or in Google's default install location.
+Google's Antigravity CLI `agy`; install and sign in with Google's installer (or `agy acp --login` over SSH). Shown where `agy` is on the `PATH` or in Google's default install location.
 
-- Runs as a chat through its print mode (`--input-format stream-json --output-format stream-json`): one turn per message, tool calls and their output, the conversation's title as the tab name.
-- YOLO is `--dangerously-skip-permissions`; otherwise agy's own `toolPermission` setting decides. Ask before tools starts agy with `--settings '{"agentMode": ""}'` (Default mode, this session only), since agy 1.5.7 starts in Auto when no mode is given. Its headless mode cannot show native permission prompts: when agy blocks a tool, the chat offers to allow tools for the session and retry the last message.
-- Mode (message box): `accept-edits`, `auto`, `plan`.
-- No stop message, so Stop restarts agy on the same conversation. `/model` (choices from `agy models`) restarts it with `--model`.
-- agy does not replay a resumed conversation, so the bridge keeps its own copy of each chat (`DATA/chat/agy/<conversation>.jsonl`) to show again after Restart or `/resume`. `/resume` lists the folder's conversations from agy's `conversation_summaries.db`.
-- Context: Deck's note goes in `DATA/agy-context/AGENTS.md`, passed with `--add-dir`. When the machine notes have an `AGENTS.md`, its `AGENTS.md`, `PREFERENCES.md`, `PROFILE.md` and `RESOURCES.md` are copied into `DATA/agy-context/.agents/rules/` (synced with `deck-notes sync` at session start).
+- Runs as a chat over its Agent Client Protocol (`agy acp --stdio`, JSON-RPC over stdio): streamed replies and thinking blocks, tool calls with diffs and cleaned output, live context window usage, plan-limit chips from `/usage`, and live conversation titles.
+- YOLO is `--dangerously-skip-permissions`; otherwise Ask before tools sets ACP mode to `default` (respecting agy's own `toolPermission` setting) and shows native permission cards (Allow, Deny, Allow all for session) inline without restarting.
+- Native `ask_question` prompts (single-select, multi-select, multi-question, free-text Other, and Skip) arrive over ACP elicitation and render as Deck question cards.
+- Mode (message box): `ask`, `accept-edits`, `auto`, `plan`, switched in place over ACP (switching off `--dangerously-skip-permissions` restarts without the flag).
+- `/model` and `/effort` (`low`, `medium`, `high`, `xhigh`, `max`, per model) switch in place via ACP `session/set_config_option`; Stop cancels the active turn via `session/cancel`; `/compact` compacts in place; typing while working steers the turn.
+- Restart and `/resume` (from ACP `session/list` with `conversation_summaries.db` fallback) reopen conversations via `session/load` and replay their full history. Info slash commands (`/help`, `/usage`, `/quota`, `/skills`, `/agents`, `/credits`, `/config`, `/permissions`, `/hooks`, `/plugin`, `/changelog`) run through `agy -p`.
+- Context: Deck's note is appended via ACP `_meta.antigravity.systemPrompt.append` (`--deck-context`), avoiding agy's 24 KB rule file limit. Legacy terminal sessions use `--add-dir` with YAML-frontmatter rules in `DATA/agy-context/.agents/rules/`.
 
 ### OpenClaw
 
@@ -528,7 +532,7 @@ A column right of the chat (`deck/shelf.py`, `DATA/shelf.json`, synced to every 
 |---|---|---|
 | PDF | Pages with selectable text | — |
 | Word | Formatted (mammoth.js) | Read-only |
-| Markdown | Formatted | Rich editor (below); **Markdown** switches to the raw text |
+| Markdown | Formatted; **Source** in the bar shows the raw text, **Rendered** formats it again (remembered per browser; saved turns too) | Rich editor (below); **Markdown** switches to the raw text |
 | LaTeX, BibTeX (`.tex`, `.sty`, `.cls`, `.ltx`, `.bib`) | Syntax colours | Plain text |
 | Other text | As is | Plain text; Save (or Ctrl+S) writes the file on its host and the text agents read |
 
@@ -561,8 +565,8 @@ Sections not marked (tab) are in General, in this order on a PC; on a phone Gene
 | Hosts (tab) | Site order | `order` |
 | Hosts (tab) | Open another host when this one is down (phone app only; stored in the app) | — |
 | Hosts (tab) | PCs ([Linked PCs](#linked-pcs)); with one host, in Settings → General → More | — |
-| Logins | Each host's agents and tools (Claude Code, Codex, OpenCode, GitHub, agy, Hugging Face): signed in, or **Log in** (see [Logins](#logins)) | — |
-| New sessions | Choose agent each time; Default agent (shown when it is off; agents set up on this host only) | `agentpick`, `agent` |
+| Logins | Shared agent and tool sign-ins (Claude Code, Codex, OpenCode, GitHub, Gemini (agy), Hugging Face): signed in, or **Log in** (see [Logins](#logins)) | — |
+| New sessions | Choose agent each time; Default agent (shown when it is off; every agent, those not set up on this host marked) | `agentpick`, `agent` |
 | New sessions | Skip permissions (YOLO) by default | `yolo` |
 | New sessions | Default folder (replaces `~/work` for agent sessions) | `folder` |
 | New sessions | Default model (every agent, and Computer sessions) | `model` |
@@ -596,13 +600,13 @@ Advanced is folded on phones and open on a PC.
 
 ### Logins
 
-Settings → General → Logins, and the second step of a new install's setup (after **Host sessions**), list each host's installed agents and tools with their sign-in state (`deck/logins.py`). Each is checked with its own read-only status command (`claude auth status`, `codex login status`, `opencode auth list`, `gh auth status`, `hf auth whoami`), in parallel; a result is reused for 20 s. **Log in** opens a terminal tab on that host running the tool's own login (`claude auth login`, `codex login --device-auth`, `opencode auth login`, `gh auth login --web`, `hf auth login`); its sign-in link is clickable, and the tab says when the tool is signed in. Deck never sees or keeps the login: each tool stores its own.
+Settings → General → Logins lists the shared sign-in state across Deck's hosts (`deck/logins.py`), and the second step of a new install's setup (after **Host sessions**) checks that host alone (`?here=1`). Each host checks its installed CLIs with their read-only status commands (`claude auth status`, `codex login status`, `opencode auth list`, `gh auth status`, `agy models`, `hf auth whoami`), in parallel; each host reuses its own result for 20 s. **Log in** opens a terminal tab on the host that still needs sign-in running the tool's own login (`claude auth login`, `codex login --device-auth`, `opencode auth login`, `gh auth login --web`, `hf auth login`); its sign-in link is clickable, and the tab says when the tool is signed in. Deck never sees or keeps the login: each tool stores its own.
 
-**Log in** is refused for a tool that is already signed in: some logins drop the saved one as they start (Codex deletes `~/.codex/auth.json`). agy has no login command: its **Log in** tab opens agy, which asks to sign in. Pi signs in inside its own app (`/login`), so it is not listed. Hosts that don't answer, or run an older Deck, are left out.
+**Log in** is refused for a tool that is already signed in: some logins drop the saved one as they start (Codex deletes `~/.codex/auth.json`). Gemini (`agy`) has no login command: its **Log in** tab opens `agy`, which asks to sign in. Pi signs in inside its own app (`/login`), so it is not listed. Hosts that don't answer, or run an older Deck, are left out.
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/logins` | This host's tools: `[{tool, name, what, optional, signedin}]`; `?fresh=1` skips the 20 s cache |
+| GET | `/api/logins` | Shared sign-in state across hosts: `[{tool, name, what, optional, signedin, hosts, missing}]`; `?here=1` queries only this host, `?fresh=1` skips the 20 s cache |
 | POST | `/api/logins/{tool}` | Start a login tab: `{session}`; 400 when the tool is unknown, missing or already signed in |
 
 ### Settings keys
@@ -752,6 +756,7 @@ One folder of skills for every agent (`deck/skills.py`). Location `DECK_SKILLS` 
 - OpenClaw keeps its skills on its Gateway (`openclaw skills install`), so it is not linked.
 - `python -m deck.skills` (from the checkout) runs it now and prints each change.
 - To share skills across hosts, point `DECK_SKILLS` at a git repo every host clones.
+- When the PC app starts the server (`DECK_SUPERVISED`), Deck pulls that repo in the background. Offline or with no upstream, it only logs. If git cannot merge (a conflict, or local edits in the way), Deck undoes the merge and opens one Claude session in the repo to pull, resolve, commit and push. The next start leaves it alone while that session is open.
 - The shelf's Deck files → Skills shows and edits them ([Shelf](#shelf)).
 
 ## Machine notes
@@ -761,7 +766,7 @@ A git repository every host keeps a full copy of, with no master (`deck/notes.py
 - Each host serves its copy at `/notes.git` (`git http-backend`, behind the same pairing and host key as the rest).
 - Commits push to every reachable peer (post-commit hook). Claude sessions start with `deck-notes sync` (pull from peers, then push).
 - A down host is skipped and catches up later: every host is checked at once with a 3-second connect before git runs, so one that is off costs about 3 s per sync.
-- A pull that cannot merge (uncommitted edits to tracked files, or a conflict, on this host) posts a Board alert, "Notes stuck on HOST", naming the changed files; the next pull that merges removes it.
+- A pull that cannot merge (uncommitted edits to tracked files, a merge someone has open, or a conflict, on this host) posts a Board alert, "Notes stuck on HOST", naming the changed files; the next pull that merges removes it.
 
 | Command | Effect |
 |---|---|
@@ -1043,7 +1048,7 @@ All routes require a paired device, the host's own browser, or the host key, exc
 |---|---|---|
 | GET, PUT | `/api/settings` | Read or update settings |
 | GET | `/api/hosts` | Hosts, colours, palette, key order |
-| GET | `/api/logins` | Each installed agent and tool's sign-in state ([Logins](#logins)) |
+| GET | `/api/logins` | Shared agent and tool sign-in state across hosts (`?here=1` for this host only; see [Logins](#logins)) |
 | POST | `/api/logins/{tool}` | Open a tab running that tool's login; refused when it is signed in |
 | GET | `/api/me` | This device's pairing state |
 | POST | `/api/app/link` | A link to `/static/deck.apk` that an unpaired browser may open for 10 minutes (the phone app can't save downloads) |

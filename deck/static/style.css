@@ -1074,6 +1074,7 @@ button.hostrow .cicon { width: 18px; text-align: center; font: 600 calc(15px * v
 .askicon { width: 34px; height: 34px; border-radius: var(--r-s); display: grid; place-items: center; font: 700 calc(18px * var(--uitext, 1)) var(--mono); background: var(--accent); color: var(--on-accent); }
 #askprompt { display: block; width: 100%; padding: 12px; border: none; border-radius: var(--r-m); outline: none; resize: vertical; background: var(--frame-2); color: var(--frame-text);
   font: 400 calc(15px * var(--uitext, 1))/1.45 var(--ui); }
+#askfields input { display: block; width: 100%; margin-top: 8px; }
 #askprompt:focus { box-shadow: 0 0 0 2px var(--accent); }
 #askfolders { margin-top: 16px; }
 #askyolowrap { margin-top: 10px; }
@@ -1084,6 +1085,8 @@ button.hostrow .cicon { width: 18px; text-align: center; font: 600 calc(15px * v
 /* a script's output, an offline chat */
 .runhead { display: flex; align-items: baseline; gap: 12px; }
 .runhead h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#runfiles .row { flex-wrap: wrap; margin: 8px 0; }
+#runfiles .hint { min-width: 0; overflow-wrap: anywhere; }
 #runstate, #offstate { font: var(--label); letter-spacing: var(--label-tracking); text-transform: var(--label-case); color: var(--frame-text-3); }
 #runtext, #offtext { height: min(60vh, 520px); margin: 8px 0 12px; padding: 10px 12px; overflow: auto; border-radius: var(--r-m); background: var(--pane); color: var(--pane-text);
   font: calc(12px * var(--uitext, 1))/1.45 var(--mono); white-space: pre-wrap; word-break: break-word; }
@@ -1186,10 +1189,8 @@ details[open] > summary.setgroup::after { transform: rotate(90deg); }
 .sethostname .sethint { display: block; margin: 2px 0 0; }
 .setorder .sethost button[disabled] { opacity: .3; }
 .setprojects { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-/* Settings → General → Logins and the setup's login step: per host, each tool's sign-in state and Log in (13-settings.js renderLogins) */
+/* Settings → General → Logins and the setup's login step: shared tool sign-in state and Log in (13-settings.js renderLogins) */
 .setlogins { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-.setlogins .loginhost { margin: 8px 0 2px; font: 600 calc(12px * var(--uitext, 1)) var(--ui); color: var(--frame-text-2); }
-.setlogins .loginhost:first-child { margin-top: 0; }
 .setlogin { display: flex; align-items: center; gap: 10px; min-height: 32px; }
 .setlogin .loginname { flex: none; width: 104px; font: 500 calc(14px * var(--uitext, 1)) var(--ui); color: var(--frame-text); }
 #settings .setlogin .loginname { font-size: calc(13px * var(--uitext, 1)); } /* as big as the rows around it */

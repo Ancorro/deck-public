@@ -400,7 +400,7 @@ async function openNew(host = "", pick = false) {
     ...agents.map((a) => row(icon(a), AGENT_NAME[a], () => startAgent(a))),
     // Computer: Claude with that host's desktop as tools, its screen above the chat (agents.computer_args)
     ...(available.computer && agents.includes("claude") ? [row(ICON.computer, "Computer", () => startAgent("claude", true))] : []),
-    ...(agents.length ? [] : [h("p", {}, "No agents are set up on this host yet. Install Claude Code, Codex, OpenCode or Pi, then reopen.")]));
+    ...(agents.length ? [] : [h("p", {}, "No agents are set up on this host yet. Install Claude Code, Codex, OpenCode, Pi or Gemini (agy), then reopen.")]));
 }
 $("#newclose").onclick = () => $("#newsess").close();
 

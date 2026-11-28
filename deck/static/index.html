@@ -299,6 +299,7 @@
           <button type="button" id="docnew" class="ghost small" title="A new document, on the shelf">+ New</button>
           <button type="button" id="docnotes" class="ghost small" title="The machine notes (infra): open a file here">Notes</button>
           <button type="button" id="docreload" class="ghost small" hidden aria-label="Refresh" title="Refresh: show the document as saved now (an agent's edits)">↻</button>
+          <button type="button" id="docsrc" class="ghost small" hidden>Source</button>
           <button type="button" id="docedit" class="ghost small" hidden>Edit</button>
           <button type="button" id="docdl" class="ghost small" hidden title="Save this document's file (a PDF as the PDF)">Download</button>
           <label id="docsend" class="ghost small" title="Tell the agent which documents are open here, with your next message"><input type="checkbox" id="docsendon"> Tell agent</label>
@@ -528,9 +529,9 @@
     <button type="button" id="linkbtn" class="setrow link">PCs <small class="sethint">link PCs into one Deck</small></button>
     </div>
     </section>
-    <section class="setsec" data-sec="logins" data-hint="sign in to Claude, Codex, GitHub on each host">
+    <section class="setsec" data-sec="logins" data-hint="shared agent and tool sign-ins">
     <h3 class="setgroup">Logins</h3>
-    <!-- each host's agent and tool sign-ins (deck/logins.py, 13-settings.js renderLogins): Log in opens a tab running the tool's own login -->
+    <!-- one shared agent and tool sign-in list across hosts (deck/logins.py, 13-settings.js renderLogins): Log in opens a tab running the tool's own login -->
     <div id="setlogins" class="setlogins"></div>
     </section>
     <section class="setsec" data-sec="new" data-hint="folder, permissions, model, effort">
@@ -544,14 +545,14 @@
     <label class="setrow">Codex<select name="model-codex" aria-label="Codex default model"><option value="">Agent default</option></select></label>
     <label class="setrow">OpenCode <small class="sethint">provider/model</small><select name="model-opencode" aria-label="OpenCode default model"><option value="">Agent default</option></select></label>
     <label class="setrow">Pi<select name="model-pi" aria-label="Pi default model"><option value="">Agent default</option></select></label>
-    <label class="setrow">agy<select name="model-agy" aria-label="agy default model"><option value="">Agent default</option></select></label>
+    <label class="setrow">Gemini <small class="sethint">agy</small><select name="model-agy" aria-label="Gemini default model"><option value="">Agent default</option></select></label>
     <label class="setrow">OpenClaw <small class="sethint">changes its shared conversation</small><select name="model-openclaw" aria-label="OpenClaw default model"><option value="">Agent default</option></select></label>
     <label class="setrow">Computer <small class="sethint">Computer sessions (Claude driving a desktop); blank: Claude's</small><select name="model-computer" aria-label="Computer session default model"><option value="">Claude's model</option></select></label>
     <h4 class="setsub">Default effort <small class="sethint">new sessions and restarts; /effort in a chat overrides it</small></h4>
     <label class="setrow">Claude<select name="effort-claude"><option value="">Agent default</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></label>
     <label class="setrow">Codex<select name="effort-codex"><option value="">Agent default</option><option>minimal</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option></select></label>
     <label class="setrow">Pi<select name="effort-pi"><option value="">Agent default</option><option>off</option><option>minimal</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></label>
-    <label class="setrow">agy<select name="effort-agy"><option value="">Agent default</option><option>low</option><option>medium</option><option>high</option></select></label>
+    <label class="setrow">Gemini<select name="effort-agy"><option value="">Agent default</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></label>
     </section>
     <section class="setsec" data-sec="chat" data-hint="tool calls, thinking, descriptions">
     <h3 class="setgroup">Chat</h3>
@@ -689,6 +690,7 @@
 <!-- A script's output (04-pad.js showRun), live -->
 <dialog id="runout">
   <div class="runhead"><h2 id="runtitle"></h2><span id="runstate"></span></div>
+  <div id="runfiles"></div>
   <pre id="runtext"></pre>
   <div class="row"><button type="button" id="runstop" class="ghost">Stop</button><button type="button" id="runopen" class="ghost">Open in terminal</button><span></span><button type="button" id="runclose" class="primary">Close</button></div>
 </dialog>
@@ -913,9 +915,10 @@
       <label><input type="radio" name="agent" value="codex"><span><svg class="logo"><use href="#logo-codex"/></svg> Codex</span></label>
       <label id="askopencode"><input type="radio" name="agent" value="opencode"><span>▣ OpenCode</span></label>
       <label id="askpi"><input type="radio" name="agent" value="pi"><span>π Pi</span></label>
-      <label id="askagy"><input type="radio" name="agent" value="agy"><span>◭ agy</span></label>
+      <label id="askagy"><input type="radio" name="agent" value="agy"><span>◭ Gemini</span></label>
     </div>
     <textarea id="askprompt" rows="4" placeholder="What should it do?"></textarea>
+    <div id="askfields"></div>
     <label class="yolo" id="askyolowrap"><input type="checkbox" id="askyolo"> Skip permissions (YOLO)</label>
     <div id="askfolders">
       <label>Folder</label>
@@ -944,10 +947,11 @@
       <label><input type="radio" name="type" value="codex"><span><svg class="logo"><use href="#logo-codex"/></svg> Codex</span></label>
       <label><input type="radio" name="type" value="opencode"><span>▣ OpenCode</span></label>
       <label><input type="radio" name="type" value="pi"><span>π Pi</span></label>
-      <label><input type="radio" name="type" value="agy"><span>◭ agy</span></label>
+      <label><input type="radio" name="type" value="agy"><span>◭ Gemini</span></label>
       <label><input type="radio" name="type" value="openclaw"><span>✺ OpenClaw</span></label>
     </div>
     <label><span id="textlabel">Command</span> <textarea name="text" rows="4"></textarea></label>
+    <label id="editfields">Fields <input name="fields" maxlength="300" placeholder="e.g. Link, Size in MB: one box each when it runs, as $1, $2"></label>
     <label>Folder <input name="cwd" placeholder="~ (home)"></label>
     <label>Run on <select name="host"></select></label>
     <label class="yolo" id="edityolo"><input type="checkbox" name="yolo"> Skip permissions (YOLO)</label>

@@ -13,7 +13,8 @@ from pathlib import Path
 from . import util
 from .util import OUT_LIMIT, WINDOWS
 
-EDIT_TOOLS = {"edit", "write", "multiedit", "notebookedit", "apply_patch", "patch"}
+EDIT_TOOLS = {"edit", "write", "multiedit", "notebookedit", "apply_patch", "patch",
+              "edit_file", "write_file", "replace_file_content", "multi_replace_file_content"}
 
 
 PASTED = re.compile(r'\s*<pasted_content id="([^"]*)">\n?(.*?)\n?</pasted_content(?: id="\1")?>\s*', re.S)
@@ -29,7 +30,8 @@ def edited_path(tool: dict) -> str:
     if str(tool.get("name", "")).lower() not in EDIT_TOOLS or not isinstance(tool.get("args"), dict):
         return ""
     a = tool["args"]
-    p = a.get("file_path") or a.get("filePath") or a.get("notebook_path") or a.get("path") or ""
+    p = (a.get("file_path") or a.get("filePath") or a.get("notebook_path") or a.get("path")
+         or a.get("Path") or a.get("TargetFile") or "")
     return str(p).split(", ")[0] if p else ""
 
 

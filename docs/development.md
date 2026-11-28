@@ -51,7 +51,7 @@ bash tests/run.sh [GROUP] [pytest args]
 - The chat bridge tests look up `claude` on `PATH` (they never run it).
 - Add regression tests for features when practical. Fix or remove broken or skipped tests; never keep them. Check user interface (UI) and agent changes live too.
 
-Running a test Deck next to a real install (`DECK_PORT=8790`, temp `HOME`, `USERPROFILE`, `DECK_DATA`, `LOCALAPPDATA`): [install.md, Testing next to a real install](install.md#testing-next-to-a-real-install).
+Running a test Deck next to a real install: `bash tests/test-deck.sh start|stop|url|log [PORT]` (`DECK_PORT=8790`, temp `HOME`, `USERPROFILE`, `DECK_DATA`, `LOCALAPPDATA`, `TMUX_TMPDIR`; stopped by pid file); details in [install.md, Testing next to a real install](install.md#testing-next-to-a-real-install).
 
 ### Continuous integration (CI)
 

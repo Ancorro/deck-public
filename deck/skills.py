@@ -4,8 +4,12 @@ skill added once reaches Claude Code, Codex, Pi, OpenCode and agy, in Deck or a 
 and before each agent session; `python -m deck.skills` runs it by hand and prints what it did.
 
 Links are symlinks, or directory junctions on Windows (no admin rights or developer mode needed). Deck only replaces
-or removes a link that points into the skills folder; anything else of the same name is left alone and reported."""
+or removes a link that points into the skills folder; anything else of the same name is left alone and reported.
+
+Under the PC app (DECK_SUPERVISED), server start also pulls the git repo holding the skills folder (pull)."""
+import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -122,6 +126,86 @@ def ensure_quietly() -> None:
         ensure()
     except Exception:
         pass
+
+
+# ---- PC app start: pull the skills repo (user 2026-11-24: "just need to pull that repo, hook when deck opens on a pc
+# (like app open) If conflicts, agents resolves it") ----
+PULL_TIMEOUT = 60
+PULL_MARK = "skills-pull.json"  # in DATA: the session resolving a pull, so a server restart does not start another
+
+
+def _git(top: Path, *args: str) -> subprocess.CompletedProcess:
+    # No prompts: an expired credential must not open a sign-in window at every app open
+    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GCM_INTERACTIVE": "never"}
+    try:
+        return subprocess.run(["git", "-C", str(top), *args], capture_output=True, text=True, timeout=PULL_TIMEOUT,
+                              env=env, encoding="utf-8", errors="replace")
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return subprocess.CompletedProcess(args, 124, "", str(e))
+
+
+def _resolver_open() -> bool:
+    from .sessions import session_exists
+    try:
+        name = json.loads((config.DATA / PULL_MARK).read_text()).get("session")
+    except (OSError, ValueError, AttributeError):
+        return False
+    return bool(name) and session_exists(name)
+
+
+def _launch_resolver(top: Path, why: str) -> str:
+    """A Claude session in the repo, told what git said; the host's YOLO setting, as the pad's New key."""
+    from . import buttons, sessions, settings
+    text = (f"Deck could not pull the skills repo {top.as_posix()} when the PC app opened. git said:\n{why}\n\n"
+            f"Pull it (git -C {top.as_posix()} pull --no-rebase) and resolve any conflicts so both sides' changes stay. "
+            "Keep uncommitted edits (the shelf's reader edits skill files in place): commit them, never reset, stash "
+            "or clean them away. Commit the merge, push, then say in one line what you merged.")
+    b = buttons.new_agent_button("claude", text, str(top), bool(settings.settings()["yolo"]))
+    return sessions.start_run(b)
+
+
+def pull(src: Path | None = None, launch=None) -> str:
+    """Fetch and merge the skills folder's git repo; one line on what happened. Offline or no upstream: nothing else.
+    A merge git cannot finish (a conflict, or local edits in the way) is undone, so linked skills never hold conflict
+    markers, and handed to one agent session (launch(top, why) -> its name; default a Claude session). A merge already
+    in progress, or a resolver session still open, is left alone."""
+    src = Path(src or config.SKILLS)
+    r = _git(src, "rev-parse", "--show-toplevel")
+    if r.returncode != 0:
+        return f"skills pull: {src} is not in a git repo"
+    top = Path(r.stdout.strip())
+    if _resolver_open():
+        return "skills pull: a session is still resolving the last pull"
+    gitdir = Path(_git(top, "rev-parse", "--absolute-git-dir").stdout.strip())
+    if (gitdir / "MERGE_HEAD").exists():
+        return "skills pull: a merge is already in progress; left alone"
+    if _git(top, "rev-parse", "--abbrev-ref", "@{u}").returncode != 0:
+        return "skills pull: the branch has no upstream"
+    f = _git(top, "fetch", "--quiet")
+    if f.returncode != 0:
+        return "skills pull: fetch failed: " + ((f.stderr or f.stdout).strip().splitlines() or ["?"])[0]
+    before = _git(top, "rev-parse", "HEAD").stdout.strip()
+    m = _git(top, "merge", "--no-edit", "@{u}")
+    if m.returncode == 0:
+        if _git(top, "rev-parse", "HEAD").stdout.strip() == before:
+            return "skills pull: up to date"
+        ensure_quietly()
+        return "skills pull: pulled"
+    if (gitdir / "MERGE_HEAD").exists():
+        _git(top, "merge", "--abort")
+    why = "\n".join((m.stdout + m.stderr).strip().splitlines()[-15:])
+    name = (launch or _launch_resolver)(top, why)
+    config.DATA.mkdir(parents=True, exist_ok=True)
+    (config.DATA / PULL_MARK).write_text(json.dumps({"session": name}))
+    return f"skills pull: could not merge; session {name} is resolving it"
+
+
+def pull_quietly() -> None:
+    """For the PC app's server start, in a thread: a pull problem never delays or stops Deck (server.log has the line)."""
+    try:
+        print(pull(), file=sys.stderr, flush=True)
+    except Exception as e:
+        print(f"skills pull: {e}", file=sys.stderr, flush=True)
 
 
 # ---- the shelf's Deck files → Skills: each skill's text files, to read and edit in the reader ----

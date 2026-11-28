@@ -516,7 +516,7 @@ def test_every_agent_starts_as_a_chat_with_context_and_yolo(launch, tmp_path, ki
     for flag in agents.YOLO_FLAGS.get(kind, []):
         assert flag in args
     expect = {"claude": "--append-system-prompt-file", "pi": "--append-system-prompt", "codex": "--deck-context",
-              "agy": "--add-dir"}.get(kind)
+              "agy": "--deck-context"}.get(kind)
     if expect:
         assert expect in args
     if kind == "opencode":

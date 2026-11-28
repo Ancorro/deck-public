@@ -74,6 +74,12 @@ def clean() -> bool:
     return not git("status", "--porcelain", "--untracked-files=no").stdout.strip()
 
 
+def merging() -> bool:
+    """Someone (a person or an agent) is partway through a merge in the notes. Deck neither merges over it nor aborts
+    it: a sync's `merge --abort` threw away a merge an agent had open (2026-11-26)."""
+    return git("rev-parse", "-q", "--verify", "MERGE_HEAD").returncode == 0
+
+
 def host_auth(url: str) -> list[str]:
     """Peer Decks only let the user's other hosts in: send this host's shared key (auth.host_key)."""
     from . import auth
@@ -122,8 +128,8 @@ def pull(quiet: bool = False) -> list[str]:
         if not live[name] or not fetch(name, url):
             problems.append(f"{name}: unreachable")
             continue
-        if not clean():
-            problems.append(f"{name}: local notes have uncommitted edits; not merged")
+        if merging() or not clean():
+            problems.append(f"{name}: local notes have uncommitted edits or an open merge; not merged")
             continue
         if git("merge", "-q", "--no-edit", f"refs/peers/{name}").returncode:
             git("merge", "--abort")
@@ -142,11 +148,12 @@ def push(quiet: bool = False) -> list[str]:
             continue
         if git(*host_auth(url), "push", "-q", url, ref).returncode == 0:
             continue
-        if fetch(name, url) and clean() and git("merge", "-q", "--no-edit", f"refs/peers/{name}").returncode == 0:
-            if git(*host_auth(url), "push", "-q", url, ref).returncode == 0:
-                continue
-        else:
-            git("merge", "--abort")
+        if fetch(name, url) and not merging() and clean():
+            if git("merge", "-q", "--no-edit", f"refs/peers/{name}").returncode == 0:
+                if git(*host_auth(url), "push", "-q", url, ref).returncode == 0:
+                    continue
+            else:
+                git("merge", "--abort")  # only the merge just started here
         problems.append(f"{name}: push failed (down, busy with unsaved edits, or conflicting)")
     return problems
 
@@ -224,8 +231,8 @@ def carry(bundle: bytes | None, edits: list[dict], device: str = "phone") -> dic
                 problems.append("phone copy unreadable; replaced with this host's")
             elif not (counts := git("rev-list", "--left-right", "--count", "HEAD...refs/peers/phone").stdout.split()):
                 problems.append("phone copy shares no history with this host's notes; not merged")
-            elif not clean():
-                problems.append("this host has uncommitted note edits; phone copy not merged")
+            elif merging() or not clean():
+                problems.append("this host has uncommitted note edits or an open merge; phone copy not merged")
             elif git("merge", "-q", "--no-edit", "refs/peers/phone").returncode:
                 git("merge", "--abort")
                 problems.append("phone copy conflicts with this host's notes; kept this host's")

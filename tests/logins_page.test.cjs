@@ -13,6 +13,14 @@ test('Settings has a Logins section and opening Settings fills it', () => {
   assert.match(settings, /renderLogins\(\$\("#setlogins"\)\);[^}]*?\$\("#settings"\)\.showModal\(\);/);
 });
 
+test('Settings Logins renders one shared list without per-host loginhost headers', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../deck/static/style.css'), 'utf8');
+  assert.match(settings, /url = only \? `\$\{hostApi\(only\)\}\/api\/logins\?here=1/);
+  assert.match(settings, /: `\/api\/logins\$\{q\}`/);
+  assert.ok(!settings.includes('loginhost'), '13-settings.js should not split logins with loginhost headers');
+  assert.ok(!css.includes('.loginhost'), 'style.css should not define removed .loginhost style');
+});
+
 test('the setup asks for logins after choosing to host sessions, not for a client-only PC', () => {
   assert.match(html, /<dialog id="loginask">[\s\S]*?<div id="loginasklist"/);
   assert.match(start, /if \(!hosting\) \{[^}]*return; \}[\s\S]*?\$\("#loginask"\)\.showModal\(\);[\s\S]*?renderLogins\(\$\("#loginasklist"\), \{ fresh: true, only: HOME_HOST \}\)/);

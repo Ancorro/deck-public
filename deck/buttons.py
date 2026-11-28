@@ -42,18 +42,30 @@ def clean_button(raw: dict) -> dict:
         "text": text,
         "yolo": kind != "shell" and str(raw.get("yolo", False)).lower() in ("1", "true", "on"),
         "host": str(raw.get("host", "")).strip(),  # run on this Deck host (its /peer proxy); "" = the host serving the pad
+        "fields": clean_fields(raw.get("fields")) if kind == "shell" else [],
     }
 
 
+def clean_fields(raw) -> list[str]:
+    """A script key's named inputs, one box each when it runs, passed as "$1", "$2"...: a list, or comma-separated."""
+    items = raw if isinstance(raw, list) else str(raw or "").split(",")
+    return [str(x).strip()[:60] for x in items if str(x).strip()][:6]
+
+
 def asks(b: dict) -> bool:
-    """A script key that takes what the user types when it runs: its command uses "$1"."""
-    return b.get("type") == "shell" and bool(re.search(r"\$(1|\{1\}|@)", b.get("text", "")))
+    """A script key that takes what the user types when it runs: its command uses "$1" (or "$2"...), or it names
+    fields."""
+    return b.get("type") == "shell" and (bool(b.get("fields")) or bool(re.search(r"\$(\d|\{\d\}|@)", b.get("text", ""))))
 
 
 def run_arg(body: dict) -> dict:
-    """The one-off argument of a run (an asking script key's input), or nothing."""
-    arg = str(body.get("arg", "")).strip()
-    return {"arg": arg} if arg else {}
+    """The one-off arguments of a run (an asking script key's inputs, "args" or one "arg"), or nothing. A blank box
+    keeps its place ("$2" stays the second field); trailing blanks are dropped."""
+    raw = body.get("args")
+    args = [str(x).strip() for x in raw][:9] if isinstance(raw, list) else [str(body.get("arg", "")).strip()]
+    while args and not args[-1]:
+        args.pop()
+    return {"args": args} if args else {}
 
 
 def upsert_button(raw: dict) -> dict:
@@ -75,7 +87,7 @@ def delete_button(button_id: str) -> None:
 
 # ---- the built-in keys: the key builder, and a new agent session ----
 
-AGENT_LABELS = {"claude": "Claude", "codex": "Codex", "opencode": "OpenCode", "pi": "Pi", "agy": "agy", "openclaw": "OpenClaw"}
+AGENT_LABELS = {"claude": "Claude", "codex": "Codex", "opencode": "OpenCode", "pi": "Pi", "agy": "Gemini", "openclaw": "OpenClaw"}
 
 BUILDER_PROMPT = """You are the Deck key builder. Read ./AGENTS.md first; it explains how to write the script and \
 register the key.

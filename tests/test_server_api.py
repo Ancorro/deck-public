@@ -1,15 +1,23 @@
 """The API package as a whole: every route module registers, and the page's parts are served joined in order."""
+import asyncio
 import re
 
 import pytest
 
-from deck import config, server
+from deck import config, server, site
 from deck.api import ROUTE_MODULES, pages
 
 
 @pytest.fixture
 async def client(aiohttp_client, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DATA", tmp_path)
+    # This node is the writer from the start: the site loop would make it one only a moment after the app starts (a
+    # race), and on a host whose inventory lists other hosts, never; shared writes then answer 503 "retry"
+    monkeypatch.setattr(site, "_state", {"role": "writer", "seq": 0, "since": 0.0, "misses": {}, "last_seen": {}})
+
+    async def idle(app):
+        await asyncio.Event().wait()
+    monkeypatch.setattr(site, "loop", idle)
     return await aiohttp_client(server.make_app())
 
 
@@ -142,3 +150,30 @@ async def test_skills_list_read_and_save(client, tmp_path, monkeypatch):
     assert (src / "SKILL.md").read_bytes() == b"changed\n"
     assert (await client.get("/api/skills/file", params={"path": "demo/../../x.md"})).status == 400
     assert (await client.put("/api/skills/file", json={"path": "../config.json", "text": "x"})).status == 400
+
+
+async def test_script_hands_files_to_the_device_that_pressed_it(client, tmp_path, monkeypatch):
+    # A script key's DECK_OUT files: listed with its output, fetched as a download, and marked once a window saved one
+    # (user 2026-11-23: the X video key "should try to go to the client machine, (drive if cant)")
+    from deck import sessions
+    monkeypatch.setattr(sessions, "session_exists", lambda name: True)
+    monkeypatch.setattr(sessions, "session_output", lambda name: "done\n")
+    assert await (await client.get("/api/sessions/deck-a/text")).json() == {"text": "done\n"}  # no folder: no files
+    out = config.run_files("deck-a")
+    out.mkdir(parents=True)
+    (out / "clip 1.mp4").write_bytes(b"video")
+    (out / ".clip 2.mp4.part").write_bytes(b"half")  # still being written: not offered
+    (tmp_path / "secret.txt").write_bytes(b"x")
+    r = await (await client.get("/api/sessions/deck-a/text")).json()
+    assert r["files"] == [{"file": "clip 1.mp4", "size": 5}]
+    r = await client.get("/api/sessions/deck-a/files/clip%201.mp4")
+    assert r.status == 200 and await r.read() == b"video"
+    assert r.headers["Content-Type"] == "application/octet-stream" and r.headers["Content-Disposition"].startswith("attachment")
+    assert r.headers["X-Content-Type-Options"] == "nosniff"
+    for bad in ("..%2Fsecret.txt", ".clip%202.mp4.part", "nope.mp4", "%2E%2E"):
+        assert (await client.get(f"/api/sessions/deck-a/files/{bad}")).status == 404, bad
+    assert sessions.run_file("..", "deck-a.files") is None and sessions.run_file("a/b", "x") is None
+    assert (await client.post("/api/sessions/deck-a/files/nope.mp4/saved")).status == 404
+    assert (await client.post("/api/sessions/deck-a/files/clip%201.mp4/saved")).status == 200
+    assert (out / ".clip 1.mp4.saved").exists()  # what the script waits for
+    assert "files" not in await (await client.get("/api/sessions/deck-a/text")).json()  # saved: offered no more

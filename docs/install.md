@@ -174,7 +174,9 @@ The server stops itself when Windows' asyncio closes a listening socket after a 
 
 ### Testing next to a real install
 
-Run a second Deck without touching the real one:
+`bash tests/test-deck.sh start [PORT]` does all of this from a checkout (port 8790 by default) and prints the URL; `stop` ends it and its tmux server by pid file, `url` and `log` report on it. Stop a test Deck with the script or its pid, never `pkill -f DECK_PORT=...`: the pattern is in the agent's own shell command, so it kills that shell (exit 144).
+
+By hand, run a second Deck without touching the real one:
 
 1. `DECK_PORT=8790`.
 2. Unset `TMUX` and `TMUX_PANE` (inside a Deck pane, `$TMUX` points at the real tmux server).
@@ -288,7 +290,7 @@ Set per host in `~/.config/deck/env` (`KEY=VALUE` lines). The `deck` service loa
 | `DECK_NTFY` | none | ntfy topic URL for phone alerts |
 | `DECK_TRANSCRIBE_URL` | none | Local speech-to-text endpoint for the browser mic |
 | `DECK_MSYS` | `server\msys` | Windows: MSYS2 kit root |
-| `DECK_SUPERVISED` | unset | Set by the PC app: `/api/update` stops the server instead of restarting it |
+| `DECK_SUPERVISED` | unset | Set by the PC app: `/api/update` stops the server instead of restarting it; server start pulls the skills repo ([Skills](guide.md#skills)) |
 
 Build and installer variables: `DECK_NOTES_REPO`, `DECK_BUILD_TUNNEL` ([Install](#install)); `DECK_APP_VERSION`, `DECK_KEYSTORE`, `DECK_KEYSTORE_PASS`, `DECK_KEY_ALIAS`, `DECK_ABIS`, `DECK_PHONE` ([Phone app](#phone-app)).
 

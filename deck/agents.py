@@ -149,24 +149,24 @@ def pi_durable_available() -> bool:
 
 
 def agy_context() -> Path:
-    """agy has no system-prompt flag, but loads AGENTS.md and .agents/rules/*.md from any `--add-dir` folder: write the
-    Deck note there and, when the machine notes repo has agent instructions, copy its instruction files in."""
+    """Legacy terminal agy has no system-prompt flag, so write Deck's note in AGENTS.md and each machine-notes file
+    as a separate YAML-frontmatter rule in .agents/rules/ (keeping every file under agy's 24 KB rule limit)."""
     d = config.DATA / "agy-context"
     rules = d / ".agents" / "rules"
     rules.mkdir(parents=True, exist_ok=True)
-    (d / "AGENTS.md").write_text(deck_context() + "\n\n" +
-        "Deck question interface: the native ask_question tool is skipped in headless mode. When you need the "
-        "user to choose or clarify, instead reply with <deck-question> followed by a JSON object with keys "
-        "question (a string) and options (an array of short strings), then </deck-question>. Deck renders "
-        "a question card and sends the answer as the next user message. Ask one question at a time.\n",
-        encoding="utf-8")
+    notes = NOTES_LINE.format(path=str(config.NOTES).replace(str(config.HOME), "~", 1)) if (config.NOTES / "AGENTS.md").exists() else ""
+    (d / "AGENTS.md").write_text(
+        DECK_CONTEXT.format(host=config.HOST_NAME, notes=notes, port=os.environ.get("DECK_PORT", "8787")) + "\n",
+        encoding="utf-8",
+    )
     for f in rules.glob("*.md"):
         f.unlink(missing_ok=True)
     if (config.NOTES / "AGENTS.md").exists():
         for name in notes_files():
             src = config.NOTES / name
             if src.exists():
-                (rules / f"infra-{Path(name).name}").write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+                hdr = f'---\ntrigger: always_on\ndescription: "Machine notes from {name}."\n---\n'
+                (rules / f"infra-{Path(name).name}").write_text(hdr + src.read_text(encoding="utf-8"), encoding="utf-8")
     return d
 
 
@@ -212,8 +212,9 @@ def build_argv(b: dict) -> list[str]:
     on PATH.
     User text is passed as an argument ("$@"), never spliced into the script."""
     kind, text = b["type"], b["text"]
-    if kind == "shell":  # an asking key's input is "$1", an argument (never spliced into the script)
-        return [config.BASH, "-lc", text, *(["deck", b["arg"]] if b.get("arg") else [])]
+    if kind == "shell":  # an asking key's inputs are "$1", "$2"..., arguments (never spliced into the script)
+        args = b.get("args") or ([b["arg"]] if b.get("arg") else [])
+        return [config.BASH, "-lc", text, *(["deck", *args] if args else [])]
     skills.ensure_quietly()  # a skill added since the server started reaches this agent too
     yolo = YOLO_FLAGS.get(kind, []) if b.get("yolo") else []
     # Settings defaults, or the key's own (the bug button's); a chat's own /model, /effort pick overrides them. A
@@ -221,12 +222,12 @@ def build_argv(b: dict) -> list[str]:
     picked = b.get("model") or ((load_settings().get("model") or {}).get("computer") if b.get("computer") else None)
     model, effort = model_args(kind, picked), effort_args(kind, b.get("effort"))
     if kind == "agy" and model and effort:  # agy encodes effort in its model ID; conflicting flags fail
-        model[1] = re.sub(r"-(low|medium|high)$", "-" + effort[1], model[1])
+        model[1] = re.sub(r"-(low|medium|high|xhigh|max)$", "-" + effort[1], model[1])
         effort = []
     yolo = [*yolo, *model, *effort]
     if b.get("chat"):  # the agent's own arguments go after --; its adapter turns the YOLO flag into its own settings
-        if kind == "codex":  # send the full context over app-server's protocol, beyond tmux's command limit
-            note = config.DATA / "codex-context.md"
+        if kind in ("codex", "agy"):  # send the full context over app-server / ACP, beyond tmux and rule size limits
+            note = config.DATA / f"{kind}-context.md"
             note.parent.mkdir(parents=True, exist_ok=True)
             note.write_text(deck_context() + "\n", encoding="utf-8")
             context = ["--deck-context", note.as_posix()]

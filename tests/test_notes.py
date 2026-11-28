@@ -24,7 +24,7 @@ def test_down_peer_is_skipped_without_git(monkeypatch):
 
     def fake_git(*args, timeout=notes.TIMEOUT):
         calls.append(args)
-        return notes.subprocess.CompletedProcess(args, 0, "", "")
+        return notes.subprocess.CompletedProcess(args, 1 if "MERGE_HEAD" in args else 0, "", "")  # no open merge
     monkeypatch.setattr(notes, "git", fake_git)
     assert notes.up(peers) == {"live": True, "dead": False, "origin": True}
 
@@ -92,7 +92,7 @@ def test_untracked_files_do_not_stop_a_sync(monkeypatch, tmp_path):
     (here / "a.md").write_text("edited\n")
     commit(peer, "d.md")
     assert not notes.clean()
-    assert notes.pull() == ["peer: local notes have uncommitted edits; not merged"]
+    assert notes.pull() == ["peer: local notes have uncommitted edits or an open merge; not merged"]
 
 
 def test_stuck_notes_post_and_clear_a_board_alert(monkeypatch, tmp_path):
@@ -120,3 +120,41 @@ def test_stuck_notes_post_and_clear_a_board_alert(monkeypatch, tmp_path):
     assert not (tmp_path / "notes-alert.json").exists()
     notes.alert([])  # nothing left to remove
     assert len(calls) == 2
+
+
+def test_sync_leaves_an_open_merge_alone(monkeypatch, tmp_path):
+    """A push that the peer rejected ran `merge --abort` whenever its own merge could not start, so it threw away a
+    merge an agent had open in the notes (2026-11-26). Pull and push now skip an open merge and abort only their own."""
+    def g(repo, *args, check=True):
+        r = notes.subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                                 capture_output=True, text=True)
+        assert r.returncode == 0 or not check, r.stderr
+        return r
+
+    def commit(repo, name, text=None):
+        (repo / name).write_text((text or name) + "\n")
+        g(repo, "add", name)
+        g(repo, "commit", "-q", "-m", name)
+
+    peer, here = tmp_path / "peer", tmp_path / "here"
+    peer.mkdir()
+    g(peer, "init", "-q", "-b", "main")
+    g(peer, "config", "receive.denyCurrentBranch", "updateInstead")
+    commit(peer, "a.md")
+    g(tmp_path, "clone", "-q", str(peer), str(here))
+    monkeypatch.setattr(notes.config, "NOTES", here)
+    monkeypatch.setattr(notes, "peers", lambda: [("peer", str(peer))])
+    monkeypatch.setattr(notes, "host_auth", lambda url: [])
+
+    commit(peer, "b.md")  # the peer moved on, so a push from here is rejected and Deck tries to merge first
+    g(here, "checkout", "-q", "-b", "side")
+    commit(here, "a.md", "side")
+    g(here, "checkout", "-q", "main")
+    commit(here, "a.md", "main")
+    assert g(here, "merge", "-q", "side", check=False).returncode != 0  # an agent's merge, stopped on a conflict
+    assert notes.merging()
+
+    assert notes.pull() == ["peer: local notes have uncommitted edits or an open merge; not merged"]
+    assert notes.push() == ["peer: push failed (down, busy with unsaved edits, or conflicting)"]
+    assert notes.merging()  # still open, for whoever started it
+    assert "<<<<<<<" in (here / "a.md").read_text()

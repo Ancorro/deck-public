@@ -137,13 +137,22 @@ def test_agent_cli_turn_and_model_menu(agent, tmp_path):
 @pytest.mark.skipif("agy" not in chosen(), reason="agy not installed or not chosen")
 def test_agy_ask_mode_asks_before_a_tool(tmp_path):
     """agy 1.5.7 made Auto the default for a session with no mode: a fresh chat (Ask before tools) must still stop
-    on a tool and show Deck's approval card, not run it."""
+    on a tool and show Deck's approval card, not run it (unless the user set toolPermission=always-proceed)."""
+    from pathlib import Path
+    cfg = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
+    if cfg.is_file():
+        try:
+            if json.loads(cfg.read_text(encoding="utf-8")).get("toolPermission") == "always-proceed":
+                pytest.skip("agy user settings.json sets toolPermission=always-proceed")
+        except (OSError, ValueError):
+            pass
     cwd = tmp_path / "work"
     cwd.mkdir()
     c = Chat("agy", str(cwd), "Use your shell tool to run exactly: git --version . Report its output.")
     try:
         def card(ev):
-            return any(e.get("t") == "ask" and "Allow tools" in json.dumps(e) for e in ev)
+            return any(e.get("t") == "ask" and ("Allow" in (e.get("options") or []) or "Allow tools" in json.dumps(e))
+                       for e in ev)
 
         def ran(ev):  # the tool's output came back and the turn ended
             out = [i for i, e in enumerate(ev) if e.get("t") == "tool_end" and "git version" in str(e.get("out"))]

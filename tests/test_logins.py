@@ -65,3 +65,89 @@ async def test_routes_list_and_start_a_login_tab(client, monkeypatch):
     assert r.status == 200 and (await r.json())["session"] == "deck-claude-code-login-1"
     assert started[0]["label"] == "Claude Code login"
     assert (await client.post("/api/logins/gh")).status == 400  # signed in: no tab
+
+
+def test_merge_combines_per_host_logins_in_tools_order():
+    per_host = [
+        ("cor-desk", [
+            {"tool": "hf", "name": "Hugging Face", "what": "Hugging Face account", "optional": True, "signedin": True},
+            {"tool": "claude", "name": "Claude Code", "what": "Anthropic account", "optional": False, "signedin": True},
+            {"tool": "agy", "name": "Gemini", "what": "Google account: Gemini (agy) sessions", "optional": True, "signedin": True},
+        ]),
+        ("cloud-trader", [
+            {"tool": "claude", "name": "Claude Code", "what": "Anthropic account", "optional": False, "signedin": True},
+            {"tool": "gh", "name": "GitHub", "what": "GitHub account", "optional": False, "signedin": False},
+        ]),
+        ("stevenslaptop", [
+            {"tool": "claude", "name": "Claude Code", "what": "Anthropic account", "optional": False, "signedin": True},
+            {"tool": "gh", "name": "GitHub", "what": "GitHub account", "optional": False, "signedin": True},
+            {"tool": "codex", "name": "Codex", "what": "ChatGPT account", "optional": False, "signedin": False},
+        ]),
+    ]
+    merged = logins.merge(per_host)
+    assert [t["tool"] for t in merged] == ["claude", "codex", "gh", "agy", "hf"]
+    by_tool = {t["tool"]: t for t in merged}
+    assert by_tool["claude"]["signedin"] is True and by_tool["claude"]["missing"] == []
+    assert by_tool["claude"]["hosts"] == ["cor-desk", "cloud-trader", "stevenslaptop"]
+    assert by_tool["gh"]["signedin"] is False and by_tool["gh"]["missing"] == ["cloud-trader"]
+    assert by_tool["codex"]["signedin"] is False and by_tool["codex"]["missing"] == ["stevenslaptop"]
+    assert by_tool["agy"]["name"] == "Gemini" and by_tool["agy"]["signedin"] is True
+
+
+async def test_route_merges_peers_and_supports_here_param(client, monkeypatch):
+    from deck import auth, site
+
+    fake_tools(monkeypatch, {"claude": 0, "gh": 0})
+    monkeypatch.setattr(auth, "host_key", lambda: "k-test")
+    monkeypatch.setattr(site, "order", lambda: ["cor-desk", "stevenslaptop", "offline"])
+    monkeypatch.setattr(site, "host_of", lambda name: {
+        "cor-desk": {"name": "cor-desk", "url": "http://me", "current": True},
+        "stevenslaptop": {"name": "stevenslaptop", "url": "http://laptop", "current": False},
+        "offline": {"name": "offline", "url": "http://down", "current": False},
+    }.get(name))
+
+    peer_calls = []
+
+    class Resp:
+        def __init__(self, status, data):
+            self.status = status
+            self._data = data
+
+        async def json(self):
+            return self._data
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+    class HTTP:
+        async def close(self):
+            pass
+
+        def get(self, url, **_kw):
+            peer_calls.append(url)
+            if url.startswith("http://laptop/"):
+                return Resp(200, [
+                    {"tool": "claude", "name": "Claude Code", "what": "Anthropic", "optional": False, "signedin": True},
+                    {"tool": "gh", "name": "GitHub", "what": "GitHub", "optional": False, "signedin": False},
+                ])
+            raise OSError("down")
+
+    client.app._state["peer_http"] = HTTP()
+
+    r_here = await client.get("/api/logins?here=1&fresh=1")
+    assert r_here.status == 200
+    here_data = await r_here.json()
+    assert [t["tool"] for t in here_data] == ["claude", "gh"]
+    assert all("missing" not in t for t in here_data)
+    assert peer_calls == []
+
+    r_merged = await client.get("/api/logins?fresh=1")
+    assert r_merged.status == 200
+    merged = {t["tool"]: t for t in await r_merged.json()}
+    assert merged["claude"]["signedin"] is True and merged["claude"]["missing"] == []
+    assert merged["gh"]["signedin"] is False and merged["gh"]["missing"] == ["stevenslaptop"]
+    assert any(u == "http://laptop/api/logins?here=1&fresh=1" for u in peer_calls)
+

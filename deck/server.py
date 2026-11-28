@@ -1,7 +1,9 @@
 """Deck's web server: `python -m deck.server` serves the API (deck/api) on this host's port and the tunnel's. The
 systemd unit (deploy/deck.service) and the PC app (desktop/) run it this way."""
 import asyncio
+import os
 import socket
+import threading
 import time
 
 from aiohttp import web
@@ -39,6 +41,8 @@ def main() -> None:
     # Deck's own port, and the tunnel's (loopback only: deck-iroh connects to it).
     sessions.start_tmux()
     skills.ensure_quietly()  # every agent CLI sees the shared skills folder (deck/skills.py)
+    if os.environ.get("DECK_SUPERVISED"):  # the PC app opened: pull the skills repo, off the startup path
+        threading.Thread(target=skills.pull_quietly, name="skills-pull", daemon=True).start()
     socks = [bind((config.HOST, config.PORT)), bind(("127.0.0.1", config.TUNNEL_PORT))]
     app = make_app()
     if config.WINDOWS:

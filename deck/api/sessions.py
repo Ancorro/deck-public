@@ -67,7 +67,28 @@ async def session_text(request):
     name = request.match_info["name"]
     if not sessions.session_exists(name):
         raise web.HTTPNotFound()
-    return web.json_response({"text": await asyncio.to_thread(sessions.session_output, name)})
+    text = await asyncio.to_thread(sessions.session_output, name)
+    files = await asyncio.to_thread(sessions.run_files, name)  # a script's files for the device (its window saves them)
+    return web.json_response({"text": text, **({"files": files} if files else {})})
+
+
+# Always a download, never sniffed: a script's file is never a page of Deck's
+RUN_FILE_HEADERS = {"Content-Type": "application/octet-stream", "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store"}
+
+
+async def session_file(request):
+    """A file a script key offers (its DECK_OUT folder): the key's window fetches it to save on its device."""
+    f = sessions.run_file(request.match_info["name"], request.match_info["file"])
+    if f is None:
+        raise web.HTTPNotFound()
+    return web.FileResponse(f, headers={**RUN_FILE_HEADERS, "Content-Disposition": f'attachment; filename="{f.name}"'})
+
+
+async def session_file_saved(request):
+    """The window saved it: the script sees ".<file>.saved" beside it."""
+    if not sessions.run_file_saved(request.match_info["name"], request.match_info["file"]):
+        raise web.HTTPNotFound()
+    return web.json_response({"ok": True})
 
 
 async def session_describe(request):
@@ -161,6 +182,8 @@ def routes() -> list:
         web.put("/api/sessions/{name}/project", project_session),
         web.post("/api/move-in", move_in),
         web.get("/api/sessions/{name}/text", session_text),
+        web.get("/api/sessions/{name}/files/{file}", session_file),
+        web.post("/api/sessions/{name}/files/{file}/saved", session_file_saved),
         web.get("/api/sessions/{name}/describe", session_describe),
         web.post("/api/clear", clear_sessions),
         web.post("/api/shell", shell_session),

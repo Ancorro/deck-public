@@ -107,12 +107,14 @@ def start_run(b: dict, state: dict | None = None) -> str:
     # Chained in one tmux call so remain-on-exit is set before a fast script can exit.
     # A script's output also goes to a log (config.run_log): the popup shows it, and a pane's screen doesn't keep it
     # everywhere (Windows' console clears it when the script exits)
-    log = []
+    log, out = [], []
     if b["type"] == "shell":
         config.run_log(name).parent.mkdir(parents=True, exist_ok=True)
         log = [";", "pipe-pane", "-O", "-t", name, f"exec /usr/bin/tee -a '{config.tmux_path(config.run_log(name))}' > /dev/null"]
+        config.run_files(name).mkdir(parents=True, exist_ok=True)  # DECK_OUT: files for the device that pressed it
+        out = ["-e", f"DECK_OUT={config.tmux_path(config.run_files(name))}"]
     r = tmux("new-session", "-d", "-s", name, "-c", config.tmux_path(cwd), "-x", "120", "-y", "40", *session_env(argv, name),
-             "--", *argv,
+             *out, "--", *argv,
              ";", "set-option", "-t", name, "remain-on-exit", "on",
              ";", "set-option", "-t", name, "status", "off",
              ";", "set-option", "-t", name, "@deck_label", b["label"],
@@ -385,6 +387,7 @@ def kill_session(name: str) -> None:
             for f in files:
                 f.unlink(missing_ok=True)
             shutil.rmtree(config.CHAT_DIR / f"{name}.media", ignore_errors=True)  # its replies' files (fetched again if restored)
+            shutil.rmtree(config.run_files(name), ignore_errors=True)  # a script's files for the device (DECK_OUT)
             return
         except PermissionError:
             time.sleep(0.1)
@@ -499,6 +502,41 @@ def run_text(name: str, limit: int = 200_000) -> str | None:
         return None
     lines = ANSI.sub("", raw).replace("\r\n", "\n").split("\n")
     return "\n".join(line.rsplit("\r", 1)[-1] for line in lines)
+
+
+# A script key hands files to the device that pressed it by putting them in DECK_OUT (config.run_files): the key's
+# window saves each one (a browser: Downloads; the phone app: Documents/Deck), then Deck leaves ".<file>.saved" beside
+# it, so the script knows it arrived and can do something else when nothing saves it. Dotfiles aren't offered: a
+# script writes ".<file>.part" and renames it when done.
+RUN_FILE = re.compile(r"\w[\w .,()+=-]{0,150}")
+
+
+def run_files(name: str) -> list[dict]:
+    """The files a script offers now: [{file, size}], unsaved ones only."""
+    try:
+        found = sorted(config.run_files(name).iterdir())
+    except OSError:
+        return []
+    names = {f.name for f in found}
+    return [{"file": f.name, "size": f.stat().st_size} for f in found
+            if f.is_file() and RUN_FILE.fullmatch(f.name) and f".{f.name}.saved" not in names]
+
+
+def run_file(name: str, file: str) -> Path | None:
+    """Session `name`'s offered file `file`, or None (gone, or a name that would leave its folder)."""
+    if not name or name.startswith(".") or "/" in name or "\\" in name or not RUN_FILE.fullmatch(file):
+        return None
+    f = config.run_files(name) / file
+    return f if f.is_file() else None
+
+
+def run_file_saved(name: str, file: str) -> bool:
+    """A device saved `file`: its marker for the script. False when there is no such file."""
+    f = run_file(name, file)
+    if f is None:
+        return False
+    (f.parent / f".{file}.saved").touch()
+    return True
 
 
 def session_output(name: str) -> str:

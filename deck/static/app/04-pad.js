@@ -151,7 +151,12 @@ async function launch(b, overrides) {
 
 // A script's output, live: its pane's text, then how it ended. Stop ends it; Open in terminal shows it as a tab.
 let runPoll = 0, runName = "";
+const runSaving = new Set();
 function showRun(name, label) {
+  if (runName !== name) {
+    $("#runfiles").replaceChildren();
+    runSaving.clear();
+  }
   runName = name;
   $("#runtitle").textContent = label || realName(name);
   $("#runstate").textContent = "running";
@@ -159,16 +164,21 @@ function showRun(name, label) {
   $("#runstop").hidden = false;
   if (!$("#runout").open) $("#runout").showModal();
   clearInterval(runPoll);
+  let seen = false, unseen = 0; // a run just started can miss a list or two: "closed" only once it was listed, or after 10 s
   const tick = async () => {
     if (!$("#runout").open || runName !== name) return clearInterval(runPoll);
     const box = $("#runtext"), atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 8;
-    let { text } = await api("GET", `/api/sessions/${encodeURIComponent(name)}/text`).catch(() => ({ text: null }));
+    let { text, files } = await api("GET", `/api/sessions/${encodeURIComponent(name)}/text`).catch(() => ({ text: null }));
+    if (!$("#runout").open || runName !== name) return;
+    if (files) saveRunFiles(name, files);
     // the screen's empty rows, and tmux's own "Pane is dead" line (the state above says how it ended)
     if (text !== null) text = text.replace(/\n*Pane is dead[^\n]*\s*$/, "").replace(/\n{3,}/g, "\n\n").trim();
     if (text !== null && text !== box.textContent) { box.textContent = text; if (atEnd) box.scrollTop = box.scrollHeight; }
     await poll().catch(() => {});
+    if (runName !== name) return;
     const s = sessions.find((x) => x.name === name);
-    if (!s || !s.running) { // done (or closed): its exit, and nothing more to follow
+    seen ||= !!s;
+    if (s ? !s.running : seen || ++unseen > 10) { // done (or closed): its exit, and nothing more to follow
       $("#runstate").textContent = !s ? "closed" : s.exit === "0" || s.exit === 0 ? "done" : `exited ${s.exit ?? ""}`.trim();
       $("#runstop").hidden = true;
       clearInterval(runPoll);
@@ -176,6 +186,55 @@ function showRun(name, label) {
   };
   tick();
   runPoll = setInterval(tick, 1000);
+}
+// Start one automatic download per file. Keep the fetched bytes in the run window so the user's Save button still
+// works once the script has received the acknowledgement and removed the host copy.
+async function saveRunFiles(name, files) {
+  for (const f of files) {
+    if (runName !== name || !$("#runout").open) return;
+    const path = `/api/sessions/${encodeURIComponent(name)}/files/${encodeURIComponent(f.file)}`;
+    if (runSaving.has(f.file)) continue;
+    runSaving.add(f.file);
+    const status = h("span", { class: "hint", role: "status" }, `Fetching ${f.file}`);
+    const button = h("button", { type: "button", class: "ghost" }, "Save on this device");
+    $("#runfiles").append(h("div", { class: "row" }, button, status));
+    let blob, acknowledged = false;
+    const save = async (chooseLocation) => {
+      button.disabled = true;
+      try {
+        let target;
+        if (chooseLocation && window.showSaveFilePicker && !window.Capacitor?.Plugins?.Filesystem) {
+          target = await window.showSaveFilePicker({ suggestedName: f.file });
+        }
+        if (!blob) {
+          const r = await fetch(route(path));
+          if (!r.ok) throw new Error(r.statusText || `HTTP ${r.status}`);
+          blob = await r.blob();
+        }
+        if (!button.isConnected) return;
+        let where;
+        if (target) {
+          await blob.stream().pipeTo(await target.createWritable());
+          where = target.name;
+        } else {
+          where = await saveFile(blob, f.file);
+        }
+        status.textContent = where ? `Saved ${where}` : `Check browser downloads for ${f.file}`;
+      } catch (e) {
+        if (e.name !== "AbortError") status.textContent = `Can't save ${f.file}: ${e.message || e}`;
+        return;
+      } finally {
+        button.disabled = false;
+      }
+      if (!acknowledged) {
+        acknowledged = true;
+        try { await api("POST", `${path}/saved`); }
+        catch { acknowledged = false; }
+      }
+    };
+    button.onclick = () => save(true);
+    await save(false);
+  }
 }
 $("#runclose").onclick = () => $("#runout").close();
 $("#runopen").onclick = () => { $("#runout").close(); openSession(runName); };
@@ -199,10 +258,14 @@ async function openAsk(target) {
   $("#asktitle").textContent = build ? "Build a key" : target.label;
   $("#askprompt").value = "";
   const arg = !build && asksArg(target);
+  const fields = arg ? target.fields || [] : [];
   $("#askprompt").placeholder = build
     ? "e.g. a key that shows disk space and the 5 biggest folders in ~/work"
-    : arg ? "What should it do?"
+    : arg ? fields[0] || "What should it do?"
     : `What should ${AGENT_NAME[target.type] || "Claude"} do? (blank = empty session)`;
+  $("#askprompt").rows = fields.length ? 2 : 4;
+  // A key's named fields after the first: a box each, passed as "$2", "$3"... (the first is the text box, "$1")
+  $("#askfields").replaceChildren(...fields.slice(1).map((f) => h("input", { placeholder: f, "aria-label": f })));
   $("#askerr").textContent = "";
   $("#askfolders").hidden = build || arg;
   $("#askyolowrap").hidden = build || arg || target.type === "pi";
@@ -257,10 +320,11 @@ $("#askform").onsubmit = async (ev) => {
       ask.close(); await poll(); openSession(session);
     } else {
       const b = asking;
-      if (asksArg(b)) {  // its input goes in as "$1"; the saved command stays
-        if (!text) { $("#askerr").textContent = "say what it should do"; return; }
+      if (asksArg(b)) {  // its inputs go in as "$1", "$2"...; the saved command stays
+        if (!text) { $("#askerr").textContent = b.fields?.length ? `${b.fields[0]}?` : "say what it should do"; return; }
+        const args = [text, ...[...$("#askfields").children].map((x) => x.value.trim())];
         ask.close();
-        await launch(b, { arg: text });
+        await launch(b, { arg: text, args });  // "arg" too: a host older than "args" still gets "$1"
         return;
       }
       ask.close();
@@ -283,6 +347,7 @@ function openEdit(b) {
   form.elements.label.value = b?.label || "";
   form.elements.text.value = b?.text || "";
   form.elements.cwd.value = b?.cwd || "";
+  form.elements.fields.value = (b?.fields || []).join(", ");
   const runOn = form.elements.host; // this host first, then every other known host (and a saved one no longer listed)
   const names = [...new Set([HOME_HOST, ...hostList.map((x) => x.name), ...(b?.host ? [b.host] : [])])];
   runOn.replaceChildren(...names.map((n) => h("option", { value: n === HOME_HOST ? "" : n }, n === HOME_HOST ? `${n} (this host)` : n)));
@@ -295,6 +360,7 @@ function openEdit(b) {
 function syncLabel() {
   $("#textlabel").textContent = TEXT_LABEL[form.elements.type.value];
   $("#edityolo").hidden = ["shell", "pi"].includes(form.elements.type.value); // Pi never asks permission
+  $("#editfields").hidden = form.elements.type.value !== "shell";
 }
 for (const r of form.querySelectorAll("input[name=type]")) r.onchange = syncLabel;
 $("#save").onclick = async (ev) => {

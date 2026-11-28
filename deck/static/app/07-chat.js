@@ -547,9 +547,10 @@ function peerLine(dir, who) {
 // @{text=...}); null for any other call
 const SEND_RE = /(?:\/peer\/([^/\s'"]+))?\/api\/agent\/sessions\/([^/\s'"?]+)\/send/;
 function sentTo(args, host) {
-  const m = typeof args.command === "string" && args.command.match(SEND_RE);
+  const cmd = typeof args.command === "string" ? args.command : typeof args.CommandLine === "string" ? args.CommandLine : "";
+  const m = cmd && cmd.match(SEND_RE);
   if (!m) return null;
-  const c = args.command.replace(/'\\''/g, "'").replace(/'"(\$\{?\w+\}?)"'/g, "$1"); // a ' or a $VAR inside a shell's '...'
+  const c = cmd.replace(/'\\''/g, "'").replace(/'"(\$\{?\w+\}?)"'/g, "$1"); // a ' or a $VAR inside a shell's '...'
   let text = "", t = c.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/);
   try { text = t ? JSON.parse(`"${t[1]}"`) : ""; } catch { text = t[1]; }
   if (!t && (t = c.match(/\btext\s*=\s*(?:'((?:[^']|'')*)'|"([^"]*)")/))) text = t[1] !== undefined ? t[1].replace(/''/g, "'") : t[2];

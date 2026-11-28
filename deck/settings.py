@@ -14,7 +14,8 @@ from .projects import project_of
 # Settings → General → New sessions → Default effort: each agent's own levels (agents.EFFORT_FLAG sets one; none: the
 # agent's own default). OpenCode has none: its levels (variants) differ per model; /effort in a chat picks one.
 EFFORTS = {"claude": ("low", "medium", "high", "xhigh", "max"), "codex": ("minimal", "low", "medium", "high", "xhigh"),
-           "pi": ("off", "minimal", "low", "medium", "high", "xhigh", "max"), "agy": ("low", "medium", "high")}
+           "pi": ("off", "minimal", "low", "medium", "high", "xhigh", "max"),
+           "agy": ("low", "medium", "high", "xhigh", "max")}
 # Settings → General → New sessions → Default model: aliases or model IDs for every agent. Synced between hosts, and
 # never changed by a chat's /model (that pick is the session's own: the bridge undoes Claude's "saved as default").
 # "computer": a Computer session's (Claude with a host's desktop as tools; user 2026-11-14: "add a setting in deck,

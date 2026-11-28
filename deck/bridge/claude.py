@@ -402,10 +402,15 @@ class Claude(Adapter):
             card = c["id"].startswith("ysk-")
             # Chat about it: the page sends the card with the next message itself, so here it only goes away (the
             # card's own "2" attaches it to the next prompt, which a message typed mid-turn misses)
+            if card and c.get("value") == "Turn off suggestions":
+                self.ysk_off()
+                return
             keys = ask.get("Dismiss" if card and c.get("value") == "Chat about it" else c.get("value"))
             keys = keys if isinstance(keys, list) else [keys] if keys else []
             if card and self.busy:  # mid-turn the card takes no hotkeys: they would land in the prompt as text
                 self.ysk["later"] = (self.ysk["card"], keys)
+            elif card and not self.ysk_shows():
+                self.b.note("You should know: that card has left the terminal, so nothing was pressed")
             else:
                 self.keys(keys)
             if not card:  # a card's buttons don't start a turn
@@ -481,7 +486,7 @@ class Claude(Adapter):
         super().working(on)
         if not on and self.ysk["later"]:  # a card button pressed mid-turn: press it now, if that card still shows
             (card, keys), self.ysk["later"] = self.ysk["later"], None
-            if card == self.ysk["card"]:
+            if card == self.ysk["card"] and self.ysk_shows():
                 self.keys(keys)
 
     def fresh(self, ev: dict) -> bool:
@@ -797,7 +802,7 @@ class Claude(Adapter):
 
     # "You should know" card buttons, by the card's state: label -> the hotkey(s) its terminal card takes
     YSK_KEYS = {
-        "offer": {"Learn more": "1", "Knew this already": "2", "Dismiss": "0", "Turn off suggestions": ["4", "4"]},
+        "offer": {"Learn more": "1", "Knew this already": "2", "Dismiss": "0", "Turn off suggestions": []},  # ysk_off
         "explained": {"Understood": "1", "Chat about it": "2", "Dismiss": "0"},
         "asked": {"Helpful": "1", "Not relevant": "2", "Didn't understand": "3", "Dismiss": "0"},
         "asked_again": {"That was helpful": "1", "Didn't understand": "2", "Dismiss": "0"},
@@ -811,6 +816,8 @@ class Claude(Adapter):
         conversation's goes to the chat as a question whose buttons press the card's hotkeys in the terminal."""
         store = next((Path.home() / ".claude" / "plugins" / "store").glob("cc-plugin-you-should-know_*.json"), None)
         y = self.ysk
+        if y.get("off"):
+            return
         try:
             if store is None or self.path is None or store.stat().st_mtime_ns == y["mtime"]:
                 return
@@ -849,6 +856,40 @@ class Claude(Adapter):
         y["ask"] = aid
         self.asks[aid] = dict(self.YSK_KEYS[kind])
         self.b.emit({"t": "ask", "id": aid, "title": title, "options": list(self.YSK_KEYS[kind])})  # not "needs you"
+
+    YSK_PLUGIN = "cc-plugin-you-should-know@builtin"
+
+    def ysk_shows(self) -> bool:
+        """The card is on Claude's screen: its star and the start of its line. Hotkeys pressed when it is not (or when it
+        takes none) land in the prompt as text: "Turn off suggestions" put "44" before 7 messages (2026-10-31 to 11-21)."""
+        card = self.ysk.get("card")
+        line = re.sub(r"\s+", "", str(card[1] if card else ""))[:12]
+        shown = re.sub(r"\s+", "", "".join(self.grid.lines()))
+        return bool(line) and "\u2726" in shown and line in shown
+
+    def ysk_off(self) -> None:
+        """Turn off suggestions as the plugin's own button ends up doing (`/plugin disable`): the plugin off in
+        ~/.claude/settings.json's enabledPlugins, with no keys typed. Its cards stop here at once; new sessions start
+        without it."""
+        y = self.ysk
+        y["off"], y["later"] = True, None
+        if y.get("ask") and self.asks.pop(y["ask"], None) is not None:
+            self.b.answered(y["ask"])
+        y["ask"] = None
+        path = Path.home() / ".claude" / "settings.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+            if not isinstance(data, dict):
+                raise ValueError("settings.json is not an object")
+            plugins = data.get("enabledPlugins")
+            data["enabledPlugins"] = {**(plugins if isinstance(plugins, dict) else {}), self.YSK_PLUGIN: False}
+            tmp = path.with_suffix(".deck-tmp")
+            tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            tmp.replace(path)
+        except (OSError, ValueError) as e:
+            self.b.note(f"You should know: could not turn it off in Claude's settings ({e})", err=True)
+            return
+        self.b.note("You should know: suggestions are off (Claude's settings, enabledPlugins)")
 
     def kill(self) -> None:
         if self.p is not None:

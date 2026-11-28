@@ -476,30 +476,31 @@ async function readFull(it) {
 }
 async function downloadItem(it, b) {
   const f = await fullItem(it), name = fileName(it);
-  const fs = window.Capacitor?.Plugins?.Filesystem;
-  // the app's WebView drops <a download>: write to Documents/Deck instead. A document's file itself (a PDF, linked or
-  // uploaded, from whichever host has it: docFileUrl), else its text
+  // A document's file itself (a PDF, linked or uploaded, from whichever host has it: docFileUrl), else its text
   const textName = it.file?.name && !/\.(md|txt)$/i.test(name) ? `${name}.txt` : name;
   const file = it.file ? await fetch(docFileUrl(it)).then((r) => (r.ok ? r.blob() : null)).catch(() => null) : null;
+  try {
+    const where = await saveFile(file || new Blob([f.text], { type: "text/plain;charset=utf-8" }), file ? name : textName);
+    if (where) { b.textContent = "Saved ✓"; toast(`Saved to ${where}`); }
+  } catch (err) { toast(`Can't save (${err.message || err}): opened it instead`); readFull(it); } // still readable, copyable
+}
+// Save a file on this device; where it went in the app, "" in a browser (its downloads). The app's WebView drops
+// <a download>, so the app writes it to Documents/Deck instead (base64: the bytes).
+async function saveFile(blob, name) {
+  const fs = window.Capacitor?.Plugins?.Filesystem;
   if (fs) {
-    try {
-      if (file) {
-        const data = await new Promise((ok, bad) => {
-          const rd = new FileReader();
-          rd.onload = () => ok(String(rd.result).split(",")[1]); rd.onerror = () => bad(rd.error);
-          rd.readAsDataURL(file);
-        });
-        await fs.writeFile({ path: `Deck/${name}`, data, directory: "DOCUMENTS", recursive: true }); // base64: the bytes
-      } else await fs.writeFile({ path: `Deck/${textName}`, data: f.text, directory: "DOCUMENTS", encoding: "utf8", recursive: true });
-      b.textContent = "Saved ✓"; toast(`Saved to Documents/Deck/${file ? name : textName}`);
-    } catch (err) { toast(`Can't save (${err.message || err}): opened it instead`); readFull(it); } // still readable, copyable
-    return;
+    const data = await new Promise((ok, bad) => {
+      const rd = new FileReader();
+      rd.onload = () => ok(String(rd.result).split(",")[1]); rd.onerror = () => bad(rd.error);
+      rd.readAsDataURL(blob);
+    });
+    await fs.writeFile({ path: `Deck/${name}`, data, directory: "DOCUMENTS", recursive: true });
+    return `Documents/Deck/${name}`;
   }
-  // a browser: the file itself when there is one (on this host or another), else the text
-  const a = file ? h("a", { href: URL.createObjectURL(file), download: name })
-    : h("a", { href: URL.createObjectURL(new Blob([f.text], { type: "text/plain;charset=utf-8" })), download: textName });
+  const a = h("a", { href: URL.createObjectURL(blob), download: name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  return "";
 }
 
 // ---- the board: one board for every session and host (POST /api/board, deck/board.py), Deck's first view ----

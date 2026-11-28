@@ -37,7 +37,7 @@ test('cloud page offers agy installed on the selected PC and starts it there', a
   const { ctx, calls, list } = picker(async () => ({ pi: false, agy: true, openclaw: false }));
   await ctx.openNew('desk');
   assert.equal(calls[0].url, '/peer/desk/api/settings');
-  const agy = list.children.find((row) => row.children[1].children[0] === 'agy');
+  const agy = list.children.find((row) => row.children[1].children[0] === 'Gemini');
   assert.ok(agy);
   assert.ok(!list.children.some((row) => row.children[1].children[0] === 'Pi'));
   await agy.onclick();
@@ -50,7 +50,7 @@ test('home picker uses home capabilities without a peer request', async () => {
   const { ctx, calls, list } = picker(() => assert.fail('unexpected peer request'));
   await ctx.openNew();
   assert.equal(calls.length, 0);
-  assert.ok(!list.children.some((row) => row.children[1].children[0] === 'agy'));
+  assert.ok(!list.children.some((row) => row.children[1].children[0] === 'Gemini'));
 });
 
 test('late peer response cannot overwrite a newer host picker', async () => {
@@ -60,7 +60,7 @@ test('late peer response cannot overwrite a newer host picker', async () => {
   await ctx.openNew('cloud');
   release({ agy: true });
   await pending;
-  assert.ok(!list.children.some((row) => row.children[1].children[0] === 'agy'));
+  assert.ok(!list.children.some((row) => row.children[1].children[0] === 'Gemini'));
 });
 
 test('unreachable selected host shows its error without offering local agents', async () => {

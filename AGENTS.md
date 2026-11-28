@@ -16,8 +16,9 @@ planned).
   paths. Run `bash tests/run.sh all` for shared changes. Add regression tests for features when practical. Fix or
   remove broken or skipped tests; never keep them.
 - **Check it live.** UI (user interface) and agent changes need a check on a running Deck, not just tests. Run a test
-  Deck next to a real one with `DECK_PORT=8790`, `TMUX` and `TMUX_PANE` unset, and temp `HOME` and `DECK_DATA`
-  ([details](docs/install.md#testing-next-to-a-real-install)), so real sessions are never touched.
+  Deck next to a real one with `bash tests/test-deck.sh start` (port 8790, `TMUX` and `TMUX_PANE` unset, temp `HOME`
+  and `DECK_DATA`; [details](docs/install.md#testing-next-to-a-real-install)), so real sessions are never touched; end it
+  with `bash tests/test-deck.sh stop`, not `pkill -f`, which matches your own shell.
 - **Update the docs in the same patch.** A change to a screen, setting or route updates
   [docs/guide.md](docs/guide.md); an optional feature also updates
   [docs/optional-features.md](docs/optional-features.md); a change to who gets in updates

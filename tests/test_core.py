@@ -177,6 +177,17 @@ def test_an_asking_script_key_gets_its_input_as_an_argument():
     assert agents.build_argv(b) == [config.BASH, "-lc", 'desk-goal "$1" --act'] and buttons.run_arg({"arg": " "}) == {}
 
 
+def test_a_script_key_with_fields_gets_one_argument_per_field():
+    b = buttons.clean_button({"label": "xv", "type": "shell", "text": "dl.sh", "fields": " Link , , Size in MB "})
+    assert b["fields"] == ["Link", "Size in MB"] and buttons.asks(b)
+    assert buttons.clean_button({**b, "type": "claude"})["fields"] == []
+    assert buttons.asks({**b, "fields": [], "text": 'dl "$2"'})
+    # a blank middle box keeps its place; trailing blanks go
+    assert buttons.run_arg({"args": ["", "8", " "]}) == {"args": ["", "8"]} and buttons.run_arg({"args": [" "]}) == {}
+    argv = agents.build_argv({**b, **buttons.run_arg({"args": ["https://x.com/a/status/1", "8"]})})
+    assert argv == [config.BASH, "-lc", "dl.sh", "deck", "https://x.com/a/status/1", "8"]
+
+
 def test_saved_layouts_are_cleaned_and_capped():
     s = settings.save_settings({"layouts": [{"id": "a", "name": "  1 ", "layout": {"msgshut": 1, "padw": "300", "junk": 5}},
                                         {"name": "no id"}, "x"] + [{"id": str(i)} for i in range(20)]})

@@ -10,6 +10,7 @@ You run on this Deck host inside `~/work/deck-keys`. The user talks to you throu
 5. Reply with one line: key name and what it does. It appears on the pad within a few seconds.
 
 ## Rules
+- A key that makes a file for the user: put it in `$DECK_OUT` (write `.<name>.part`, then `mv` it to `<name>`). The key's window saves it on the device that pressed it, then `.<name>.saved` appears beside it; wait for that with a timeout, and handle no window saving it.
 - No secrets in scripts or keys. If one is needed, read it from a file under `~/.config/` and tell the user where to put it.
 - Don't run `sudo` or delete data without asking.
 - If your Deck context names a machine notes folder, follow its AGENTS.md: when you install software for a key, record it there and commit.

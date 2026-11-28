@@ -3,6 +3,22 @@
 Notable changes. Deck updates from `main`; releases are tags with prebuilt binaries
 ([Releases](https://github.com/Ancorro/deck-public/releases)).
 
+## Unreleased
+
+### Changes
+- Settings → General → Logins now shows one unified shared list across hosts (showing per-host drift inline when one host needs sign-in) instead of split per-host sections, adds `?here=1` to `GET /api/logins`, labels `agy` as **Gemini**, and appends Windows fallback directories after inherited `PATH` so `infra/bin/shims` is not shadowed.
+- New session, Default agent, Default model/effort and key pickers name agy **Gemini** (Google's Antigravity CLI), so Gemini is easy to find in those lists. Settings → General → New sessions → Default agent lists every agent (one not set up on the host serving the page is marked), so Gemini can be the default from any host.
+- agy chats now run over Antigravity's Agent Client Protocol (`agy acp --stdio`): streamed thinking blocks, native tool permission cards, native `ask_question` cards (including multi-select and multi-question), live context usage, in-place `/model`, `/effort` (including `xhigh` and `max`), `/mode`, `/compact`, Stop (`session/cancel`), and full history replay on Restart and `/resume`.
+- Script keys: **Fields** in the key editor (e.g. `Link, Size in MB`) gives the ask sheet one box per field, passed as `$1`, `$2`...
+- Script keys can hand files to the device that pressed them: a file the script puts in `$DECK_OUT` is saved by the key's window (a browser: its downloads; the phone app: Documents/Deck), and `.<file>.saved` beside it tells the script it arrived.
+- Review: **Source** / **Rendered** in the reader's bar switches a Markdown document (or saved turn) between formatted and its raw text, remembered per browser.
+- Claude's "You should know" card: **Turn off suggestions** now turns the plugin off in Claude's settings (`enabledPlugins`) and stops its cards in the chat. It used to press the card's hotkeys 4 4, which went into the next message as "44" when the card took no keys. The card's other buttons press keys only while the card is on Claude's screen.
+- `tests/test-deck.sh start|stop|url|log [PORT]` runs a test Deck next to a real one and stops it by pid file (agents' `pkill -f DECK_PORT=8790` killed their own shell).
+
+### Fixes
+- Script output shows the downloaded file and a **Save on this device** button, with a choice of save location in supported browsers.
+- Notes sync no longer aborts a merge someone has open in the notes: a push the peer rejected ran `git merge --abort` even when its own merge never started. Pull, push and the phone's carry now skip an open merge and undo only their own.
+
 ## 0.6.0 (2026-11-22)
 
 ### Changes

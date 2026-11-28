@@ -69,7 +69,18 @@ async def test_a_run_passes_its_one_off_argument(client, monkeypatch):
     monkeypatch.setattr(buttons, "load_buttons", lambda: [buttons.clean_button({"id": "cu", "label": "cu", "type": "shell", "text": 'go "$1"'})])
     monkeypatch.setattr(sessions, "start_run", lambda b: seen.append(b) or "s1")
     r = await client.post("/api/run/cu", json={"arg": "open notepad"})
-    assert r.status == 200 and seen[0]["arg"] == "open notepad" and seen[0]["text"] == 'go "$1"'
+    assert r.status == 200 and seen[0]["args"] == ["open notepad"] and seen[0]["text"] == 'go "$1"'
+
+
+async def test_a_run_passes_each_field_as_its_own_argument(client, monkeypatch):
+    # (user 2026-11-25: "let the X video downloadeer have a size field in the UI")
+    seen = []
+    key = {"id": "xv", "label": "xv", "type": "shell", "text": 'dl "$1" "$2"', "fields": "Link, Size in MB"}
+    monkeypatch.setattr(buttons, "load_buttons", lambda: [buttons.clean_button(key)])
+    monkeypatch.setattr(sessions, "start_run", lambda b: seen.append(b) or "s1")
+    r = await client.post("/api/run/xv", json={"args": ["https://x.com/a/status/1", " 8 "], "arg": "https://x.com/a/status/1"})
+    assert r.status == 200 and seen[0]["args"] == ["https://x.com/a/status/1", "8"]
+    assert seen[0]["fields"] == ["Link", "Size in MB"]
 
 
 async def test_phone_screen_detaches_without_a_streaming_page(client, monkeypatch):

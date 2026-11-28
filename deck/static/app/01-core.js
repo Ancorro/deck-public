@@ -8,9 +8,10 @@ const $ = (s) => document.querySelector(s);
 const KEYS = { esc: "\x1b", tab: "\t", stab: "\x1b[Z", ctrlc: "\x03", up: "\x1b[A", down: "\x1b[B", left: "\x1b[D", right: "\x1b[C", enter: "\r" };
 const TEXT_LABEL = { shell: "Command", claude: "Prompt (optional)", codex: "Prompt (optional)", opencode: "Prompt (optional)", pi: "Prompt (optional)", agy: "Prompt (optional)", openclaw: "Prompt (optional)" };
 const ICON = { shell: "›_", claude: "✳", codex: "❖", opencode: "▣", pi: "π", agy: "◭", openclaw: "✺", terminal: "$", computer: "▭" };
-// A script key that takes what the user types when it runs: its command uses "$1" (buttons.asks)
-const asksArg = (b) => b?.type === "shell" && /\$(1|\{1\}|@)/.test(b.text || "");
-const AGENT_NAME = { claude: "Claude", codex: "Codex", opencode: "OpenCode", pi: "Pi", agy: "agy", openclaw: "OpenClaw" };
+// A script key that takes what the user types when it runs: its command uses "$1" ("$2"...), or it names fields, one
+// box each, passed as "$1", "$2"... (buttons.asks)
+const asksArg = (b) => b?.type === "shell" && (!!b.fields?.length || /\$(\d|\{\d\}|@)/.test(b.text || ""));
+const AGENT_NAME = { claude: "Claude", codex: "Codex", opencode: "OpenCode", pi: "Pi", agy: "Gemini", openclaw: "OpenClaw" };
 // Agents set up on a host: its settings' `agents` list, or (from a host older than that list) the pi/agy/openclaw flags.
 function agentsOn(s) {
   return Array.isArray(s.agents) ? s.agents

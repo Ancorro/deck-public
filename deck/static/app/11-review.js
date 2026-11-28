@@ -154,6 +154,7 @@ async function docTabsRender(fresh = true) {
     docRender++;
     $("#docdl").hidden = true; // nothing open: nothing to download
     $("#docreload").hidden = true;
+    $("#docsrc").hidden = true;
     $("#docbody").replaceChildren(h("p", { class: "hint" }, "Drag something from the shelf here, or drop a PDF or text file."));
   }
   return items;
@@ -177,6 +178,14 @@ $("#docpane").addEventListener("drop", async (e) => {
 });
 // A SKILL.md's front matter (--- name, description ---) as a YAML block: as Markdown, its closing --- made the lines
 // above it a heading
+// Markdown in the reader: formatted, or its source text (user 2026-11-23: "add a render/source button for the review
+// bar, (md)"); remembered per browser
+let docSource = false;
+try { docSource = localStorage.getItem("deck-doc-source") === "1"; } catch { /* formatted */ }
+const docSrcLabel = () => {
+  $("#docsrc").textContent = docSource ? "Rendered" : "Source";
+  $("#docsrc").title = docSource ? "Show this Markdown formatted" : "Show this Markdown's source text";
+};
 const frontMatterAsCode = (t) => t.replace(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/, "```yaml\n$1\n```\n");
 async function openDoc(id, fresh = false) { // fresh: the reader's ↻, read from its host again, no cached copy
   await closeEditor(); // an open editor saves first
@@ -191,10 +200,26 @@ async function openDoc(id, fresh = false) { // fresh: the reader's ↻, read fro
     : found && !found.note && (found.file?.linked || fresh) ? await api("GET", `${found.file ? docHost(found) : ""}/api/shelf/${id}`).catch(() => found) : await fullItem(found);
   if (!it || mine !== docRender) return;
   watchLinked(it);
-  // A text document as is (Markdown formatted); a saved turn as the chat shows it
-  const text = () => body.replaceChildren(it.kind !== "doc" || /\.(md|markdown)$/i.test(it.title || "")
-    ? Object.assign(h("div", { class: "cprose" }), { innerHTML: chatMarkdown(frontMatterAsCode(it.text)) })
-    : h("pre", { class: "doctext" }, syntaxOf(it) ? highlight(it.text, syntaxOf(it)) : it.text));
+  // A text document as is (Markdown formatted); a saved turn as the chat shows it. Markdown shows as its source
+  // instead while the bar's Source is on (docSource)
+  const md = it.kind !== "doc" || /\.(md|markdown)$/i.test(it.title || "") || it.file?.type === "text/markdown";
+  const text = () => {
+    $("#docsrc").hidden = !md;
+    body.replaceChildren(md && !docSource
+      ? Object.assign(h("div", { class: "cprose" }), { innerHTML: chatMarkdown(frontMatterAsCode(it.text)) })
+      : h("pre", { class: "doctext" }, syntaxOf(it) ? highlight(it.text, syntaxOf(it)) : it.text));
+  };
+  $("#docsrc").hidden = true; // PDF and Word: no source to show
+  docSrcLabel();
+  $("#docsrc").onclick = () => {
+    if (docEditing || $("#docbody .docedit")) return toast("Save or cancel the edit first");
+    docSource = !docSource;
+    try { localStorage.setItem("deck-doc-source", docSource ? "1" : ""); } catch { /* this visit only */ }
+    docSrcLabel();
+    const keep = body.scrollHeight ? body.scrollTop / body.scrollHeight : 0;
+    text();
+    body.scrollTop = keep * body.scrollHeight;
+  };
   body.style.fontSize = `${Math.round(14 * docZoom)}px`; // text documents zoom by their font size
   $("#doczoomval").textContent = `${Math.round(docZoom * 100)}%`;
   // Text documents (txt, md, code...) can be edited here; PDFs and Word files are read-only

@@ -83,7 +83,7 @@ test("Download on a document gives its file from the host that has it, linked or
   const fn = shelf.slice(shelf.indexOf('async function downloadItem'), shelf.indexOf('\n}\n', shelf.indexOf('async function downloadItem')));
   assert.match(fn, /fetch\(docFileUrl\(it\)\)/); // /peer/<host> when the file is on another host
   assert.doesNotMatch(fn, /!it\.file\.linked/); // a linked PDF downloads as the PDF too
-  assert.match(fn, /URL\.createObjectURL\(file\)/);
+  assert.match(fn, /saveFile\(file \|\| new Blob/); // the file's bytes when there is one, else the text
 });
 
 test('PDFs download on a PC too: the shelf card and the reader have Download (user: "I need to be able to download the PDFs from the shelf")', () => {

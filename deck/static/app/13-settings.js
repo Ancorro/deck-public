@@ -92,24 +92,27 @@ function renderProjects() {
     : [h("small", { class: "sethint" }, "none yet: a pinned page's \"Main for …\" on the shelf makes it one")]));
 }
 // Settings → General → Logins and the setup's login step (user 2026-11-08: "an easy way to new CLI users to log in",
-// "part of a set up sequence", "also in settings"): each host's agents and tools (deck/logins.py) as signed in, or a Log
-// in that opens a tab running the tool's own login. Hosts that hold no sessions (client only) or don't answer are left out.
+// "part of a set up sequence", "also in settings"): one shared sign-in list across hosts (deck/logins.py) or ?here=1
+// for one host during setup; Log in opens a tab running the tool's own login.
 const hostApi = (host) => host === HOME_HOST ? "" : `/peer/${encodeURIComponent(host)}`;
 let loginWatch = 0;
 async function renderLogins(box, { fresh = false, only = "" } = {}) {
-  const hosts = only ? [only] : [HOME_HOST, ...hostList.map((x) => x.name).filter((n) => n !== HOME_HOST)];
   if (!box.childElementCount) box.replaceChildren(h("small", { class: "sethint" }, "Checking…"));
-  const lists = await Promise.all(hosts.map((host) =>
-    api("GET", `${hostApi(host)}/api/logins${fresh ? "?fresh=1" : ""}`).then((l) => [host, l], () => [host, null])));
+  const q = fresh ? "?fresh=1" : "";
+  const url = only ? `${hostApi(only)}/api/logins?here=1${fresh ? "&fresh=1" : ""}` : `/api/logins${q}`;
+  const list = await api("GET", url).catch(() => null);
   const rows = [];
-  for (const [host, list] of lists) {
-    if (!list?.length) continue;
-    if (hosts.length > 1) rows.push(h("div", { class: "loginhost" }, hostLabel(host)));
-    for (const t of list) rows.push(h("div", { class: "setlogin" },
+  for (const t of (list || [])) {
+    const missing = Array.isArray(t.missing) ? t.missing : (t.signedin ? [] : [only || HOME_HOST]);
+    const hosts = Array.isArray(t.hosts) ? t.hosts : [only || HOME_HOST];
+    const target = only || (missing.includes(HOME_HOST) ? HOME_HOST : missing[0] || HOME_HOST);
+    const partial = !only && missing.length > 0 && hosts.length > 1 && missing.length < hosts.length;
+    const what = t.signedin ? t.what : `${t.what}${partial ? ` · sign in on ${missing.map(hostLabel).join(", ")}` : ""}${t.optional ? " (optional)" : ""}`;
+    rows.push(h("div", { class: "setlogin" },
       h("span", { class: "loginname" }, t.name),
-      h("span", { class: "loginwhat", title: t.what }, t.signedin ? t.what : `${t.what}${t.optional ? " (optional)" : ""}`),
+      h("span", { class: "loginwhat", title: what }, what),
       t.signedin ? h("span", { class: "loginok" }, "✓ Signed in")
-        : h("button", { type: "button", class: "ghost small", onclick: () => startLogin(host, t, box, only) }, "Log in")));
+        : h("button", { type: "button", class: "ghost small", onclick: () => startLogin(target, t, box, only) }, "Log in")));
   }
   box.replaceChildren(...(rows.length ? rows : [h("small", { class: "sethint" }, "no agents or tools found on the hosts that answered")]));
 }
@@ -128,8 +131,8 @@ async function startLogin(host, t, box, only) {
     clearInterval(loginWatch);
     let n = 0;
     loginWatch = setInterval(async () => {
-      const l = await api("GET", `${hostApi(host)}/api/logins?fresh=1`).catch(() => null);
-      if (l?.find((x) => x.tool === t.tool)?.signedin) { clearInterval(loginWatch); toast(`${t.name} is signed in on ${hostLabel(host)}`); renderLogins(box, { only }); }
+      const l = await api("GET", `${hostApi(host)}/api/logins?here=1&fresh=1`).catch(() => null);
+      if (l?.find((x) => x.tool === t.tool)?.signedin) { clearInterval(loginWatch); toast(`${t.name} is signed in on ${hostLabel(host)}`); renderLogins(box, { fresh: true, only }); }
       else if (++n > 60) clearInterval(loginWatch); // 10 minutes
     }, 10000);
   } catch (e) { toast(e.message); }
@@ -179,10 +182,13 @@ function openSettings() {
   f.folder.value = prefs.folder; f.brain.value = prefs.brain || ""; f.yolo.checked = prefs.yolo; f.pidurable.checked = !!prefs.pidurable;
   f.chatjump.checked = prefs.chatjump !== false; f.chattools.checked = prefs.chattools !== false; f.thinkopen.checked = !!prefs.thinkopen; f.notesopen.checked = !!prefs.notesopen; f.sessionagents.checked = !!prefs.sessionagents; f.describe.checked = !!prefs.describe; f.describer.value = prefs.describer || "claude"; f.crop.checked = prefs.crop !== false; f.composer.checked = prefs.composer !== false; f.font.value = font();
   f.agentpick.checked = prefs.agentpick !== false;
-  const agents = agentsOn(prefs); // Default agent offers only agents set up on this host
-  $("#setagent").replaceChildren(...agents.map((a) => h("option", { value: a }, AGENT_NAME[a])));
-  f.agent.value = agents.includes(prefs.agent) ? prefs.agent : agents[0] || "";
-  $("#setagentwrap").hidden = prefs.agentpick !== false || !agents.length;
+  // Default agent is shared by every host, so it offers every agent (user 2026-11-28: "add gemini to default lists",
+  // "the default in settings"); one not set up on this host is marked, and + there falls back to the picker.
+  const here = agentsOn(prefs), agents = Object.keys(AGENT_NAME);
+  $("#setagent").replaceChildren(...agents.map((a) => h("option", { value: a },
+    here.includes(a) ? AGENT_NAME[a] : `${AGENT_NAME[a]} (not on this host)`)));
+  f.agent.value = agents.includes(prefs.agent) ? prefs.agent : here[0] || "claude";
+  $("#setagentwrap").hidden = prefs.agentpick !== false;
   f.textterm.checked = textTerm(); f.chat.checked = !!prefs.chat; f.hosting.checked = prefs.hosting !== false; f.debug.checked = !!prefs.debug; f.scripts.checked = !!prefs.scripts;
   for (const k of ["claude", "codex", "pi", "agy"]) f[`effort-${k}`].value = prefs.effort?.[k] || "";
   for (const k of MODEL_AGENTS) f[`model-${k}`].value = prefs.model?.[k] || "";
@@ -209,7 +215,7 @@ async function saveSetting(fields) {
     d.replaceWith(thinkBlock(d.lastChild.textContent));
   if ("notesopen" in fields) for (const d of document.querySelectorAll(".ctool.cnotes")) d.open = !!prefs.notesopen;
   if (textTerm() !== wasText && attached) { const n = attached; detach(); attach(n); }
-  if ("agentpick" in fields) $("#setagentwrap").hidden = fields.agentpick || !agentsOn(prefs).length;
+  if ("agentpick" in fields) $("#setagentwrap").hidden = fields.agentpick;
   try {
     await api("PUT", "/api/settings", fields);
   } catch (err) {

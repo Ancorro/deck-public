@@ -64,3 +64,20 @@ test('no light theme paints a surface pure white', () => {
       assert.ok(!/^#(fff|ffffff)$/i.test(m[2]), `${f} --${m[1]} is pure white`);
   }
 });
+
+test('Default agent offers every agent, Gemini included, even where it is not installed', () => {
+  const js = read('deck/static/app/13-settings.js');
+  const core = read('deck/static/app/01-core.js');
+  const vm = require('node:vm');
+  const names = core.slice(core.indexOf('const AGENT_NAME'), core.indexOf('\n', core.indexOf('const AGENT_NAME')));
+  const fn = js.slice(js.indexOf('const here = agentsOn(prefs)'), js.indexOf('$("#setagentwrap").hidden', js.indexOf('const here = agentsOn(prefs)')));
+  const select = { value: '', options: [], replaceChildren(...o) { this.options = o; } };
+  const ctx = { prefs: { agent: 'agy', agents: ['claude', 'codex'] }, f: { agent: select },
+    $: () => select, h: (_t, a, text) => ({ value: a.value, text }),
+    agentsOn: (s) => s.agents };
+  vm.runInNewContext(`${names.replace('const ', 'var ')}\n${fn}`, ctx);
+  const gemini = select.options.find((o) => o.value === 'agy');
+  assert.equal(gemini.text, 'Gemini (not on this host)');
+  assert.equal(select.options.find((o) => o.value === 'claude').text, 'Claude');
+  assert.equal(select.value, 'agy');
+});
